@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage x:Class="PassCrate.App.Views.GroupDetailsPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             Title="{Binding Name}">
+    <Grid RowDefinitions="Auto,*" Padding="22,14,22,24" RowSpacing="16">
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
+            <Border WidthRequest="54" HeightRequest="54" StrokeThickness="0" BackgroundColor="{StaticResource PrimaryLight}" StrokeShape="RoundRectangle 17"><Label Text="{Binding Icon}" TextColor="{Binding Color}" FontSize="27" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" /></Border>
+            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center"><Label Text="GROUP" Style="{StaticResource Eyebrow}" /><Label Text="{Binding Name}" Style="{StaticResource SectionTitle}" /></VerticalStackLayout>
+            <Button Grid.Column="2" Text="＋ Add" Command="{Binding AddSecretCommand}" MinimumHeightRequest="44" Padding="12,8" />
+            <Button Grid.Column="3" Text="Rename" Command="{Binding RenameCommand}" Style="{StaticResource SecondaryButton}" MinimumHeightRequest="44" Padding="10,8" />
+            <Button Grid.Column="4" Text="×" Command="{Binding DeleteCommand}" Style="{StaticResource SecondaryButton}" TextColor="{StaticResource Danger}" MinimumHeightRequest="44" MinimumWidthRequest="44" Padding="8" />
+        </Grid>
+        <CollectionView Grid.Row="1" ItemsSource="{Binding Secrets}" SelectionMode="None" EmptyView="This group is empty. Add its first secret.">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,9">
+                        <Border.GestureRecognizers><TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.OpenSecretCommand}" CommandParameter="{Binding .}" /></Border.GestureRecognizers>
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                            <Border WidthRequest="42" HeightRequest="42" StrokeThickness="0" BackgroundColor="{StaticResource PrimaryLight}" StrokeShape="RoundRectangle 13"><Label Text="⌁" TextColor="{StaticResource Primary}" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" /></Border>
+                            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center"><Label Text="{Binding Name}" FontFamily="OpenSansSemibold" /><Label Text="Encrypted secret" Style="{StaticResource Muted}" /></VerticalStackLayout>
+                            <Label Grid.Column="2" Text="›" FontSize="24" Style="{StaticResource Muted}" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+</ContentPage>

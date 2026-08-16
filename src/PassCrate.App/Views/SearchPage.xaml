@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage x:Class="PassCrate.App.Views.SearchPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             Title="Search">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Padding="20,14,20,24" RowSpacing="12">
+        <SearchBar Text="{Binding Query}" Placeholder="Search names, groups, and field labels" />
+        <Border Grid.Row="1" StrokeThickness="0" BackgroundColor="{AppThemeBinding Light=#EAFBF4, Dark=#102B26}" StrokeShape="RoundRectangle 13" Padding="12">
+            <Label Text="⌁  Sensitive values and notes are never included in search." TextColor="{StaticResource Success}" FontSize="11" />
+        </Border>
+        <Label Grid.Row="2" Text="Groups" FontFamily="OpenSansSemibold" />
+        <CollectionView Grid.Row="3" ItemsSource="{Binding GroupResults}" SelectionMode="None" HeightRequest="82">
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Horizontal" ItemSpacing="8" />
+            </CollectionView.ItemsLayout>
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Style="{StaticResource Card}" WidthRequest="150">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.OpenGroupCommand}" CommandParameter="{Binding .}" />
+                        </Border.GestureRecognizers>
+                        <HorizontalStackLayout Spacing="8">
+                            <Label Text="{Binding Icon}" TextColor="{Binding Color}" />
+                            <Label Text="{Binding Name}" FontFamily="OpenSansSemibold" LineBreakMode="TailTruncation" />
+                        </HorizontalStackLayout>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+        <CollectionView Grid.Row="4" ItemsSource="{Binding SecretResults}" SelectionMode="None" EmptyView="No matching secrets.">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,9">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.OpenSecretCommand}" CommandParameter="{Binding .}" />
+                        </Border.GestureRecognizers>
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                            <Border WidthRequest="42" HeightRequest="42" StrokeThickness="0" BackgroundColor="{StaticResource PrimaryLight}" StrokeShape="RoundRectangle 13">
+                                <Label Text="⌁" TextColor="{StaticResource Primary}" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                            </Border>
+                            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                                <Label Text="{Binding Name}" FontFamily="OpenSansSemibold" />
+                                <Label Text="Encrypted secret" Style="{StaticResource Muted}" />
+                            </VerticalStackLayout>
+                            <Label Grid.Column="2" Text="›" FontSize="24" Style="{StaticResource Muted}" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+</ContentPage>

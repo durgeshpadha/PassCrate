@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage x:Class="PassCrate.App.Views.ResetPage" xmlns="http://schemas.microsoft.com/dotnet/2021/maui" xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" Title="Reset PassCrate">
+    <ScrollView><VerticalStackLayout Padding="24,25,24,38" Spacing="16" MaximumWidthRequest="560" HorizontalOptions="Center">
+        <Border WidthRequest="64" HeightRequest="64" StrokeThickness="0" BackgroundColor="{StaticResource Danger}" StrokeShape="RoundRectangle 20" HorizontalOptions="Center"><Label Text="!" TextColor="White" FontFamily="OpenSansSemibold" FontSize="30" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" /></Border>
+        <Label Text="This cannot be undone" Style="{StaticResource PageTitle}" HorizontalTextAlignment="Center" />
+        <Label Text="This permanently removes your local PassCrate vault, encrypted secrets, key material, provider tokens, preferences, and cache from this device. Any encrypted cloud vault is kept." Style="{StaticResource Muted}" HorizontalTextAlignment="Center" />
+        <Border Style="{StaticResource Card}" Margin="0,10,0,0"><VerticalStackLayout Spacing="8"><Label Text="×  Local vault and passphrase envelope" Style="{StaticResource Muted}" /><Label Text="×  Encrypted secrets and groups on this device" Style="{StaticResource Muted}" /><Label Text="×  Key material and provider tokens" Style="{StaticResource Muted}" /><Label Text="✓  Encrypted cloud vault is preserved" TextColor="{StaticResource Success}" /></VerticalStackLayout></Border>
+        <Label Text="Type RESET to confirm" Style="{StaticResource Eyebrow}" Margin="0,8,0,0" /><Border Style="{StaticResource FieldBorder}"><Entry Text="{Binding Confirmation}" Placeholder="RESET" /></Border>
+        <Label Text="{Binding ErrorMessage}" TextColor="{StaticResource Danger}" /><Button Text="Permanently reset PassCrate" Command="{Binding ResetCommand}" Style="{StaticResource DangerButton}" /><Button Text="Keep my vault" Style="{StaticResource SecondaryButton}" Clicked="OnCancelClicked" />
+    </VerticalStackLayout></ScrollView>
+</ContentPage>

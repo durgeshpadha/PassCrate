@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+    <File Path="Directory.Build.props" />
+    <File Path="global.json" />
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/PassCrate.App/PassCrate.App.csproj">
+      <Deploy Solution="Debug|*" />
+    </Project>
+    <Project Path="src/PassCrate.Core/PassCrate.Core.csproj" />
+    <Project Path="src/PassCrate.Infrastructure/PassCrate.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PassCrate.Tests/PassCrate.Tests.csproj" />
+  </Folder>
+</Solution>

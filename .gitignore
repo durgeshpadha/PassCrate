@@ -1,0 +1,18 @@
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vs/
+*.user
+
+# Local configuration and signing material
+.env*
+*.pem
+*.jks
+*.keystore
+
+# .NET / MAUI build output
+**/bin/
+**/obj/
+*.apk
+*.aab
+*.ipa

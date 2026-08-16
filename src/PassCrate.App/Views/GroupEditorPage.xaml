@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage x:Class="PassCrate.App.Views.GroupEditorPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             Title="{Binding PageTitle}">
+    <ScrollView>
+        <VerticalStackLayout Padding="22,18,22,32" Spacing="16" MaximumWidthRequest="620" HorizontalOptions="Center">
+            <Label Text="{Binding PageTitle}" Style="{StaticResource PageTitle}" />
+            <Entry Text="{Binding Name}" Placeholder="Group name" MaxLength="80" />
+            <Label Text="Icon" Style="{StaticResource SectionTitle}" />
+            <Picker ItemsSource="{Binding Icons}" SelectedItem="{Binding SelectedIcon}" />
+            <Label Text="Color" Style="{StaticResource SectionTitle}" />
+            <Picker ItemsSource="{Binding Colors}" SelectedItem="{Binding SelectedColor}" />
+            <Border StrokeThickness="0" BackgroundColor="{Binding SelectedColor}" StrokeShape="RoundRectangle 14" Padding="16">
+                <HorizontalStackLayout Spacing="10">
+                    <Label Text="{Binding SelectedIcon}" TextColor="White" FontSize="24" />
+                    <Label Text="{Binding Name, TargetNullValue=Group preview}" TextColor="White" FontFamily="OpenSansSemibold" VerticalTextAlignment="Center" />
+                </HorizontalStackLayout>
+            </Border>
+            <Button Text="Save group" Command="{Binding SaveCommand}" />
+            <Label Text="{Binding ErrorMessage}" TextColor="{StaticResource Danger}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

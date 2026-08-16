@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage x:Class="PassCrate.App.Views.RegistrationPage" xmlns="http://schemas.microsoft.com/dotnet/2021/maui" xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" Title="Create vault">
+    <ScrollView><VerticalStackLayout Padding="24,22,24,40" Spacing="16" MaximumWidthRequest="680" HorizontalOptions="Center">
+        <Label Text="CREATE YOUR PRIVATE SPACE" Style="{StaticResource Eyebrow}" /><Label Text="Set up PassCrate" Style="{StaticResource PageTitle}" />
+        <Label Text="One strong vault passphrase protects your secrets locally and, if enabled, in cloud sync." Style="{StaticResource Muted}" />
+        <Label Text="Vault passphrase" Style="{StaticResource SectionTitle}" Margin="0,12,0,0" /><Label Text="Use at least 16 memorable characters. PassCrate never stores it." Style="{StaticResource Muted}" />
+        <Border Style="{StaticResource FieldBorder}"><Entry Text="{Binding Passphrase}" Placeholder="Vault passphrase" IsPassword="True" ReturnType="Next" /></Border>
+        <Border Style="{StaticResource FieldBorder}"><Entry Text="{Binding ConfirmPassphrase}" Placeholder="Confirm vault passphrase" IsPassword="True" ReturnType="Done" /></Border>
+        <Border Stroke="#F2C46D" BackgroundColor="{AppThemeBinding Light=#FFF8E8, Dark=#2B2112}" StrokeShape="RoundRectangle 16" Padding="16"><VerticalStackLayout Spacing="4"><Label Text="No hidden recovery mechanism" FontFamily="OpenSansSemibold" /><Label Text="If you lose this passphrase, PassCrate cannot recover your secrets." Style="{StaticResource Muted}" /></VerticalStackLayout></Border>
+        <HorizontalStackLayout Spacing="8"><CheckBox IsChecked="{Binding AcceptsRecoveryWarning}" /><Label Text="I understand that my vault passphrase cannot be recovered." Style="{StaticResource Muted}" VerticalTextAlignment="Center" /></HorizontalStackLayout>
+        <Label Text="{Binding ErrorMessage}" TextColor="{StaticResource Danger}" IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" /><ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+        <Button Text="Create encrypted vault" Command="{Binding CreateVaultCommand}" IsEnabled="{Binding IsNotBusy}" /><Button Text="Cancel" Style="{StaticResource SecondaryButton}" Command="{Binding CancelCommand}" />
+    </VerticalStackLayout></ScrollView>
+</ContentPage>

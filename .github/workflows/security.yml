@@ -1,0 +1,40 @@
+name: Security validation
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  managed-tests:
+    runs-on: windows-latest
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.302
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Validate JDK
+        shell: pwsh
+        run: ./scripts/validate-jdk.ps1
+      - name: Restore locked dependencies
+        run: dotnet restore PassCrate.slnx --locked-mode
+      - name: Test Release
+        run: dotnet test tests/PassCrate.Tests/PassCrate.Tests.csproj --no-restore --configuration Release
+      - name: Build Android Release bundle
+        run: dotnet build src/PassCrate.App/PassCrate.App.csproj -f net10.0-android --no-restore --configuration Release -p:AndroidPackageFormat=aab
+      - name: Create SBOM
+        id: sbom
+        uses: advanced-security/generate-sbom-action@v1
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: passcrate-sbom
+          path: ${{ steps.sbom.outputs.fileName }}

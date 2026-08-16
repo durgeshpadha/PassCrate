@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage x:Class="PassCrate.App.Views.SettingsPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             Title="Settings">
+    <ScrollView>
+        <VerticalStackLayout Padding="22,14,22,36" Spacing="14" MaximumWidthRequest="760" HorizontalOptions="Center">
+            <Label Text="SECURITY" Style="{StaticResource Eyebrow}" />
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="4">
+                    <Button Text="✦  Change vault passphrase             ›" Command="{Binding ChangePasswordCommand}" Style="{StaticResource SecondaryButton}" BorderWidth="0" HorizontalOptions="Fill" />
+                    <BoxView HeightRequest="1" BackgroundColor="{AppThemeBinding Light={StaticResource LightBorder}, Dark={StaticResource DarkBorder}}" />
+                    <Grid ColumnDefinitions="*,Auto" Padding="12,6"><VerticalStackLayout><Label Text="◎  Biometric unlock" FontFamily="OpenSansSemibold" /><Label Text="Platform authentication convenience" Style="{StaticResource Muted}" /></VerticalStackLayout><Switch Grid.Column="1" IsToggled="{Binding BiometricEnabled}" /></Grid>
+                    <BoxView HeightRequest="1" BackgroundColor="{AppThemeBinding Light={StaticResource LightBorder}, Dark={StaticResource DarkBorder}}" />
+                    <Grid ColumnDefinitions="*,150" Padding="12,6"><VerticalStackLayout><Label Text="◷  Auto-lock" FontFamily="OpenSansSemibold" /><Label Text="Locks whenever PassCrate leaves the app; optionally locks after inactivity while open." Style="{StaticResource Muted}" /></VerticalStackLayout><Picker Grid.Column="1" ItemsSource="{Binding AutoLockOptions}" SelectedItem="{Binding SelectedAutoLock}" /></Grid>
+                    <BoxView HeightRequest="1" BackgroundColor="{AppThemeBinding Light={StaticResource LightBorder}, Dark={StaticResource DarkBorder}}" />
+                    <Grid ColumnDefinitions="*,150" Padding="12,6"><VerticalStackLayout><Label Text="Clipboard cleanup" FontFamily="OpenSansSemibold" /><Label Text="Clears only PassCrate's unchanged value" Style="{StaticResource Muted}" /></VerticalStackLayout><Picker Grid.Column="1" ItemsSource="{Binding ClipboardOptions}" SelectedItem="{Binding SelectedClipboardTimeout}" /></Grid>
+                </VerticalStackLayout>
+            </Border>
+            <Label Text="APPEARANCE" Style="{StaticResource Eyebrow}" Margin="0,10,0,0" />
+            <Border Style="{StaticResource Card}"><Grid ColumnDefinitions="*,150" Padding="4"><VerticalStackLayout><Label Text="◐  Theme" FontFamily="OpenSansSemibold" /><Label Text="Updates immediately" Style="{StaticResource Muted}" /></VerticalStackLayout><Picker Grid.Column="1" ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedTheme}" /></Grid></Border>
+            <Label Text="VAULT" Style="{StaticResource Eyebrow}" Margin="0,10,0,0" />
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout>
+                    <Button Text="☁  End-to-end encrypted cloud sync    ›" Command="{Binding CloudSyncCommand}" Style="{StaticResource SecondaryButton}" BorderWidth="0" HorizontalOptions="Fill" />
+                    <Label Text="{Binding CloudStatusText}" Style="{StaticResource Muted}" Margin="12,0" />
+                    <Button Text="{Binding ConflictStatusText}" Command="{Binding ReviewConflictsCommand}" Style="{StaticResource SecondaryButton}" BorderWidth="0" HorizontalOptions="Fill" />
+                </VerticalStackLayout>
+            </Border>
+            <Button Text="Lock vault now" Command="{Binding LockCommand}" Style="{StaticResource SecondaryButton}" />
+            <Label Text="DANGER ZONE" Style="{StaticResource Eyebrow}" TextColor="{StaticResource Danger}" Margin="0,10,0,0" />
+            <Button Text="Reset PassCrate" Command="{Binding ResetCommand}" Style="{StaticResource DangerButton}" />
+            <Border Style="{StaticResource Card}" Margin="0,12,0,0"><VerticalStackLayout Spacing="5"><Label Text="PassCrate" FontFamily="OpenSansSemibold" /><Label Text="Private by design." Style="{StaticResource Muted}" /><Label Text="Version 1.0 · Local-first · Optional encrypted cloud sync" Style="{StaticResource Muted}" /></VerticalStackLayout></Border>
+            <Label Text="{Binding ErrorMessage}" TextColor="{StaticResource Danger}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

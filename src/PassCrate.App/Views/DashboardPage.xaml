@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage x:Class="PassCrate.App.Views.DashboardPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             Title="PassCrate">
+    <RefreshView Command="{Binding LoadCommand}" IsRefreshing="{Binding IsBusy}">
+        <ScrollView>
+            <VerticalStackLayout Padding="22,16,22,32" Spacing="18" MaximumWidthRequest="1000" HorizontalOptions="Center">
+                <Grid ColumnDefinitions="*,Auto">
+                    <VerticalStackLayout Spacing="3">
+                        <Label Text="{Binding Greeting}" Style="{StaticResource Eyebrow}" />
+                        <Label Text="Your vault is protected" Style="{StaticResource PageTitle}" FontSize="26" />
+                        <HorizontalStackLayout Spacing="8">
+                            <Label Text="●" TextColor="{StaticResource Success}" />
+                            <Label Text="Unlocked on this device" Style="{StaticResource Muted}" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                    <Border Grid.Column="1" WidthRequest="48" HeightRequest="48" StrokeThickness="0" BackgroundColor="{StaticResource PrimaryLight}" StrokeShape="RoundRectangle 15">
+                        <Label Text="⌁" TextColor="{StaticResource Primary}" FontSize="24" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    </Border>
+                </Grid>
+
+                <!-- Prominent Home action requested during prototype review. -->
+                <Border StrokeThickness="0" StrokeShape="RoundRectangle 20" Padding="18">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#5B5CE2" Offset="0" />
+                            <GradientStop Color="#4338CA" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                        <Border WidthRequest="48" HeightRequest="48" Stroke="#8B8CF0" BackgroundColor="#6D6EE8" StrokeShape="RoundRectangle 15">
+                            <Label Text="＋" TextColor="White" FontSize="26" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                        </Border>
+                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                            <Label Text="Add a secret" TextColor="White" FontFamily="OpenSansSemibold" FontSize="17" />
+                            <Label Text="Encrypt a password, key, or private note" TextColor="#D5D7FF" FontSize="11" />
+                        </VerticalStackLayout>
+                        <Button Grid.Column="2" Text="Add" Command="{Binding AddSecretCommand}" BackgroundColor="White" TextColor="{StaticResource Primary}" MinimumHeightRequest="42" Padding="16,8" />
+                    </Grid>
+                </Border>
+
+                <Button Text="{Binding ConflictBadge}" Command="{Binding ReviewConflictsCommand}" Style="{StaticResource SecondaryButton}" TextColor="{StaticResource Warning}" IsVisible="{Binding ConflictBadge, Converter={StaticResource StringNotEmptyConverter}}" />
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                    <Border Style="{StaticResource Card}">
+                        <VerticalStackLayout Spacing="3"><Label Text="SECRETS" Style="{StaticResource Eyebrow}" /><Label Text="{Binding SecretCount}" FontFamily="OpenSansSemibold" FontSize="27" /></VerticalStackLayout>
+                    </Border>
+                    <Border Grid.Column="1" Style="{StaticResource Card}">
+                        <VerticalStackLayout Spacing="3"><Label Text="GROUPS" Style="{StaticResource Eyebrow}" /><Label Text="{Binding GroupCount}" FontFamily="OpenSansSemibold" FontSize="27" /></VerticalStackLayout>
+                    </Border>
+                </Grid>
+
+                <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0"><Label Text="Your groups" Style="{StaticResource SectionTitle}" /><Button Grid.Column="1" Text="＋ New group" Command="{Binding AddGroupCommand}" Style="{StaticResource SecondaryButton}" MinimumHeightRequest="42" Padding="12,7" /></Grid>
+                <CollectionView ItemsSource="{Binding Groups}" SelectionMode="None" EmptyView="No groups yet">
+                    <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="{OnIdiom Phone=2, Tablet=3, Desktop=3}" HorizontalItemSpacing="10" VerticalItemSpacing="10" /></CollectionView.ItemsLayout>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource Card}" MinimumHeightRequest="130">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.OpenGroupCommand}" CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                                <VerticalStackLayout Spacing="7">
+                                    <Label Text="{Binding Icon}" TextColor="{Binding Color}" FontSize="27" />
+                                    <Label Text="{Binding Name}" FontFamily="OpenSansSemibold" FontSize="15" />
+                                    <Label Text="{Binding CountLabel}" Style="{StaticResource Muted}" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <Label Text="Recently updated" Style="{StaticResource SectionTitle}" Margin="0,8,0,0" />
+                <CollectionView ItemsSource="{Binding RecentSecrets}" SelectionMode="None" EmptyView="Add your first secret from Home.">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource Card}" Margin="0,0,0,8">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.OpenSecretCommand}" CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                    <Border WidthRequest="42" HeightRequest="42" StrokeThickness="0" BackgroundColor="{StaticResource PrimaryLight}" StrokeShape="RoundRectangle 13"><Label Text="⌁" TextColor="{StaticResource Primary}" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" /></Border>
+                                    <VerticalStackLayout Grid.Column="1" VerticalOptions="Center"><Label Text="{Binding Name}" FontFamily="OpenSansSemibold" /><Label Text="Encrypted record" Style="{StaticResource Muted}" /></VerticalStackLayout>
+                                    <Label Grid.Column="2" Text="›" Style="{StaticResource Muted}" FontSize="24" VerticalTextAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+                <Label Text="{Binding ErrorMessage}" TextColor="{StaticResource Danger}" />
+            </VerticalStackLayout>
+        </ScrollView>
+    </RefreshView>
+</ContentPage>

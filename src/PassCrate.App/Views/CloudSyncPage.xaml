@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage x:Class="PassCrate.App.Views.CloudSyncPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             Title="Cloud Sync">
+    <ScrollView>
+        <VerticalStackLayout Padding="24,20,24,40" Spacing="15" MaximumWidthRequest="680" HorizontalOptions="Center">
+            <Label Text="END-TO-END ENCRYPTED" Style="{StaticResource Eyebrow}" />
+            <Label Text="Cloud Sync" Style="{StaticResource PageTitle}" />
+            <Label Text="Sync encrypted groups and secrets across your devices. Google Drive and Dropbox receive only opaque encrypted snapshots." Style="{StaticResource Muted}" />
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto"><Label Text="Status" FontFamily="OpenSansSemibold" /><Label Grid.Column="1" Text="{Binding SelectedProvider}" Style="{StaticResource Muted}" /></Grid>
+                    <Label Text="{Binding StatusText}" Style="{StaticResource Muted}" />
+                    <Label Text="{Binding ConflictText}" TextColor="{StaticResource Warning}" IsVisible="{Binding ConflictText, Converter={StaticResource StringNotEmptyConverter}}" />
+                    <Button Text="Review conflicts" Command="{Binding ReviewConflictsCommand}" Style="{StaticResource SecondaryButton}" IsVisible="{Binding ConflictText, Converter={StaticResource StringNotEmptyConverter}}" />
+                    <Button Text="Reconnect" Command="{Binding ReconnectCommand}" IsVisible="{Binding CanReconnect}" />
+                    <Label Text="Last successful sync" Style="{StaticResource Eyebrow}" Margin="0,5,0,0" />
+                    <Label Text="{Binding LastSyncText}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <VerticalStackLayout IsVisible="{Binding IsDisabled}" Spacing="12">
+                <Label Text="Provider" Style="{StaticResource SectionTitle}" />
+                <Border Style="{StaticResource FieldBorder}"><Picker ItemsSource="{Binding ProviderOptions}" SelectedItem="{Binding SelectedProvider}" /></Border>
+                <Label Text="Vault passphrase" Style="{StaticResource SectionTitle}" Margin="0,8,0,0" />
+                <Label Text="Re-enter your vault passphrase to create the encrypted cloud recovery envelope. PassCrate never stores it." Style="{StaticResource Muted}" />
+                <Border Style="{StaticResource FieldBorder}"><Entry Text="{Binding VaultPassphrase}" Placeholder="Vault passphrase" IsPassword="True" /></Border>
+                <Border Stroke="#F2C46D" BackgroundColor="{AppThemeBinding Light=#FFF8E8, Dark=#2B2112}" StrokeShape="RoundRectangle 16" Padding="16">
+                    <VerticalStackLayout Spacing="5"><Label Text="No recovery mechanism" FontFamily="OpenSansSemibold" /><Label Text="PassCrate never stores this passphrase. If you lose it, a new device cannot restore your cloud vault." Style="{StaticResource Muted}" /></VerticalStackLayout>
+                </Border>
+                <Button Text="Authorize and enable sync" Command="{Binding EnableCommand}" IsEnabled="{Binding IsNotBusy}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout IsVisible="{Binding IsEnabled}" Spacing="12">
+                <Button Text="Sync now" Command="{Binding SyncNowCommand}" IsEnabled="{Binding IsNotBusy}" />
+                <Border Style="{StaticResource Card}"><Grid ColumnDefinitions="*,Auto"><VerticalStackLayout><Label Text="Wi-Fi only" FontFamily="OpenSansSemibold" /><Label Text="Off by default" Style="{StaticResource Muted}" /></VerticalStackLayout><Switch Grid.Column="1" IsToggled="{Binding WifiOnly}" /></Grid></Border>
+                <Button Text="Disconnect (keep cloud files)" Command="{Binding DisconnectCommand}" Style="{StaticResource SecondaryButton}" />
+
+                <Label Text="DELETE CLOUD COPY" Style="{StaticResource Eyebrow}" TextColor="{StaticResource Danger}" Margin="0,12,0,0" />
+                <Label Text="Requires your vault passphrase and the exact confirmation text. This never deletes local data." Style="{StaticResource Muted}" />
+                <Border Style="{StaticResource FieldBorder}"><Entry Text="{Binding VaultPassphrase}" Placeholder="Vault passphrase" IsPassword="True" /></Border>
+                <Border Style="{StaticResource FieldBorder}"><Entry Text="{Binding DeleteConfirmation}" Placeholder="DELETE CLOUD VAULT" /></Border>
+                <Button Text="Delete cloud vault" Command="{Binding DeleteCloudVaultCommand}" Style="{StaticResource DangerButton}" />
+                <Label Text="DELETE ALL PASSCRATE CLOUD DATA" Style="{StaticResource Eyebrow}" TextColor="{StaticResource Danger}" Margin="0,12,0,0" />
+                <Label Text="This removes every PassCrate .pvs file in the connected provider app folder." Style="{StaticResource Muted}" />
+                <Border Style="{StaticResource FieldBorder}"><Entry Text="{Binding DeleteAllConfirmation}" Placeholder="DELETE ALL CLOUD VAULTS" /></Border>
+                <Button Text="Delete all PassCrate cloud data" Command="{Binding DeleteAllProviderDataCommand}" Style="{StaticResource DangerButton}" />
+            </VerticalStackLayout>
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+            <Label Text="{Binding ErrorMessage}" TextColor="{StaticResource Danger}" IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
