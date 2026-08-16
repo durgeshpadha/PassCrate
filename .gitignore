@@ -2,17 +2,39 @@
 .DS_Store
 Thumbs.db
 .vs/
+.idea/
 *.user
+*.suo
+*.userosscache
+*.sln.docstates
 
 # Local configuration and signing material
 .env*
+appsettings.Development.json
+secrets.json
 *.pem
+*.pfx
+*.p12
 *.jks
 *.keystore
+*.mobileprovision
+GoogleService-Info.plist
+google-services.json
+
+# Local vault and test databases
+*.db
+*.db-*
+*.db3
+*.db3-*
+*.sqlite
+*.sqlite-*
 
 # .NET / MAUI build output
 **/bin/
 **/obj/
+TestResults/
+coverage/
 *.apk
 *.aab
 *.ipa
+*.xcarchive
