@@ -4,8 +4,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              BackgroundColor="{AppThemeBinding Light={StaticResource LightBackground}, Dark={StaticResource DarkBackground}}"
              Title="PassCrate">
-    <RefreshView Command="{Binding LoadCommand}" IsRefreshing="{Binding IsBusy}">
-        <ScrollView>
+    <ScrollView>
             <VerticalStackLayout Padding="20,16,20,32" Spacing="18" MaximumWidthRequest="900" HorizontalOptions="Fill">
                 <Grid ColumnDefinitions="*,Auto">
                     <VerticalStackLayout Spacing="3">
@@ -95,6 +94,5 @@
                 </CollectionView>
                 <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" />
             </VerticalStackLayout>
-        </ScrollView>
-    </RefreshView>
+    </ScrollView>
 </ContentPage>
