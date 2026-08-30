@@ -61,6 +61,7 @@ public sealed class CloudSyncService(
     {
         CredentialPolicy.ValidateVaultPassphrase(vaultPassphrase);
         EnsureUnlocked();
+        await keyManagement.VerifyPassphraseAsync(vaultPassphrase, cancellationToken).ConfigureAwait(false);
         EnsureNetworkAvailable();
         await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -682,6 +683,12 @@ public sealed class CloudSyncService(
 
     public void CancelActiveSync() => _activeSync?.Cancel();
 
+    public void ResetLocalState()
+    {
+        CancelActiveSync();
+        SetStatus(CloudSyncState.Disabled, null, "Cloud sync is off.");
+    }
+
     private async Task<UploadResult> UploadCurrentStateAsync(
         ICloudStorageProvider storage,
         CloudSyncConfiguration configuration,
@@ -997,6 +1004,8 @@ public sealed class CloudSyncService(
     {
         var (state, message) = exception switch
         {
+            CloudProviderConfigurationException configuration =>
+                (CloudSyncState.ReconnectRequired, configuration.Message),
             CloudAuthorizationRequiredException =>
                 (CloudSyncState.ReconnectRequired, "Your cloud connection expired. Reconnect to continue."),
             CloudQuotaException =>

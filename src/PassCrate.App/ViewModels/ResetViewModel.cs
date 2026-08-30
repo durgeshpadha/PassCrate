@@ -8,8 +8,10 @@ namespace PassCrate.App.ViewModels;
 
 public sealed partial class ResetViewModel(
     IApplicationResetService resetService,
-    IDeviceOwnerAuthenticationService deviceAuthentication) : BaseViewModel
+    IDeviceOwnerAuthenticationService deviceAuthentication) : BaseViewModel, IQueryAttributable
 {
+    private bool restoreAfterReset;
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ResetCommand))]
     [NotifyPropertyChangedFor(nameof(IsConfirmationInvalid))]
@@ -41,6 +43,17 @@ public sealed partial class ResetViewModel(
 
         await resetService.ResetAsync();
         Confirmation = string.Empty;
-        await Shell.Current.GoToAsync("//welcome");
+        await ((AppShell)Shell.Current).NavigateToWelcomeAfterResetAsync();
+        if (restoreAfterReset)
+        {
+            restoreAfterReset = false;
+            await Shell.Current.GoToAsync(nameof(Views.CloudRestorePage));
+        }
     }, "Unable to reset PassCrate.");
+
+    public void ApplyQueryAttributes(IDictionary<string, object> query)
+    {
+        restoreAfterReset = query.TryGetValue("next", out var next) &&
+            string.Equals(next?.ToString(), "restore", StringComparison.OrdinalIgnoreCase);
+    }
 }

@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PassCrate.App.Services;
+using PassCrate.Core.Help;
 using PassCrate.Core.Interfaces;
 using PassCrate.Core.Security;
 
@@ -15,9 +16,12 @@ public sealed partial class UnlockViewModel(
     [ObservableProperty] private string passphrase = string.Empty;
     [ObservableProperty] private bool isBiometricAvailable;
     [ObservableProperty] private bool isPassphraseInvalid;
+    [ObservableProperty] private bool isDeviceRecoveryRequired;
 
     public async Task LoadAsync()
     {
+        ErrorMessage = string.Empty;
+        IsDeviceRecoveryRequired = false;
         if (!await EnsureLocalVaultExistsAsync())
         {
             return;
@@ -35,6 +39,7 @@ public sealed partial class UnlockViewModel(
         }
 
         IsPassphraseInvalid = false;
+        IsDeviceRecoveryRequired = false;
         if (string.IsNullOrWhiteSpace(Passphrase))
         {
             IsPassphraseInvalid = true;
@@ -45,6 +50,11 @@ public sealed partial class UnlockViewModel(
         {
             await keyManagement.UnlockVaultAsync(Passphrase);
         }
+        catch (DeviceKeyUnavailableException)
+        {
+            IsDeviceRecoveryRequired = true;
+            throw;
+        }
         catch (Exception exception) when (exception is CredentialValidationException or VaultUnlockException)
         {
             IsPassphraseInvalid = true;
@@ -52,7 +62,7 @@ public sealed partial class UnlockViewModel(
         }
         cloudSync.NotifyVaultUnlocked();
         Passphrase = string.Empty;
-        await Shell.Current.GoToAsync("//main/dashboard");
+        await ((AppShell)Shell.Current).NavigateToFreshMainAsync();
     }, "Unable to unlock your vault.");
 
     [RelayCommand]
@@ -70,16 +80,36 @@ public sealed partial class UnlockViewModel(
         }
 
         cloudSync.NotifyVaultUnlocked();
-        await Shell.Current.GoToAsync("//main/dashboard");
+        await ((AppShell)Shell.Current).NavigateToFreshMainAsync();
     }, "Unable to unlock your vault.");
 
     [RelayCommand]
     private static Task ForgotPassphraseAsync() => Shell.Current.GoToAsync(nameof(Views.ResetPage));
 
+    [RelayCommand]
+    private static async Task RestoreFromCloudAsync()
+    {
+        var continueToReset = await Shell.Current.DisplayAlertAsync(
+            "Restore from cloud",
+            "The unreadable vault saved on this device must be reset before a cloud backup can be restored. Existing encrypted cloud backups will be kept. Continue to the protected reset screen?",
+            "Continue",
+            "Cancel");
+        if (continueToReset)
+        {
+            await Shell.Current.GoToAsync($"{nameof(Views.ResetPage)}?next=restore");
+        }
+    }
+
+    [RelayCommand]
+    private static Task HelpAsync() =>
+        Shell.Current.GoToAsync($"{nameof(Views.HelpPage)}?topic={HelpTopicIds.UnlockRecovery}");
+
     public void ClearSensitiveState()
     {
         Passphrase = string.Empty;
         IsPassphraseInvalid = false;
+        IsDeviceRecoveryRequired = false;
+        ErrorMessage = string.Empty;
     }
 
     partial void OnPassphraseChanged(string value)

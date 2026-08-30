@@ -2,7 +2,7 @@ using PassCrate.App.ViewModels;
 
 namespace PassCrate.App.Views;
 
-public partial class SearchPage : ContentPage
+public partial class SearchPage : ContentPage, IResettablePageState
 {
     private readonly SearchViewModel _viewModel;
 
@@ -17,4 +17,6 @@ public partial class SearchPage : ContentPage
         base.OnAppearing();
         _viewModel.SearchCommand.Execute(null);
     }
+
+    public void ResetPageState() => _viewModel.ResetState();
 }

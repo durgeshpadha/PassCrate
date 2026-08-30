@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage x:Class="PassCrate.App.Views.HelpPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:help="clr-namespace:PassCrate.Core.Help;assembly=PassCrate.Core"
+             Title="Help"
+             BackgroundColor="{AppThemeBinding Light={StaticResource LightBackground}, Dark={StaticResource DarkBackground}}">
+    <Grid RowDefinitions="Auto,Auto,*"
+          RowSpacing="14"
+          Padding="20,18,20,0"
+          MaximumWidthRequest="720"
+          HorizontalOptions="Fill">
+        <VerticalStackLayout Spacing="4">
+            <Label Text="HELP &amp; SUPPORT"
+                   Style="{StaticResource AccentEyebrow}"
+                   SemanticProperties.HeadingLevel="Level2" />
+            <Label Text="How can we help?"
+                   Style="{StaticResource PageTitle}"
+                   FontSize="27"
+                   SemanticProperties.HeadingLevel="Level1" />
+            <Label Text="Search for a feature or open a page topic for plain-language steps, security notes, and solutions."
+                   Style="{StaticResource PageLead}" />
+        </VerticalStackLayout>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <SearchBar Text="{Binding Query}"
+                       Placeholder="Search Help"
+                       SemanticProperties.Description="Search PassCrate Help topics"
+                       ReturnType="Search" />
+            <Button Grid.Column="1"
+                    Text="Clear"
+                    Command="{Binding ClearSearchCommand}"
+                    IsVisible="{Binding HasQuery}"
+                    Style="{StaticResource CompactButton}"
+                    MinimumWidthRequest="64"
+                    SemanticProperties.Description="Clear the Help search" />
+        </Grid>
+
+        <CollectionView x:Name="HelpTopics"
+                        Grid.Row="2"
+                        ItemsSource="{Binding Groups}"
+                        IsGrouped="True"
+                        ItemSizingStrategy="MeasureAllItems"
+                        SelectionMode="None">
+            <CollectionView.GroupHeaderTemplate>
+                <DataTemplate>
+                    <Label Text="{Binding Title}"
+                           Style="{StaticResource Eyebrow}"
+                           Margin="2,16,2,7"
+                           SemanticProperties.HeadingLevel="Level2" />
+                </DataTemplate>
+            </CollectionView.GroupHeaderTemplate>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                        <VerticalStackLayout Spacing="0">
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="12"
+                                  MinimumHeightRequest="56"
+                                  SemanticProperties.Description="{Binding AccessibilityDescription}"
+                                  AutomationProperties.IsInAccessibleTree="True">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.ToggleTopicCommand}"
+                                        CommandParameter="{Binding .}" />
+                                </Grid.GestureRecognizers>
+                                <VerticalStackLayout Spacing="3" VerticalOptions="Center">
+                                    <Label Text="{Binding PageName}"
+                                           Style="{StaticResource AccentEyebrow}" />
+                                    <Label Text="{Binding Title}"
+                                           FontFamily="OpenSansSemibold"
+                                           FontSize="17"
+                                           SemanticProperties.HeadingLevel="Level3" />
+                                    <Label Text="{Binding Summary}"
+                                           Style="{StaticResource Muted}"
+                                           LineHeight="1.2" />
+                                </VerticalStackLayout>
+                                <Border Grid.Column="1"
+                                        Style="{StaticResource IconTile}"
+                                        WidthRequest="42"
+                                        HeightRequest="42"
+                                        StrokeShape="RoundRectangle 13"
+                                        VerticalOptions="Center"
+                                        InputTransparent="True">
+                                    <Label Text="{Binding ExpansionIndicator}"
+                                           Style="{StaticResource AccentIcon}"
+                                           FontSize="22"
+                                           HorizontalTextAlignment="Center"
+                                           VerticalTextAlignment="Center" />
+                                </Border>
+                            </Grid>
+
+                            <VerticalStackLayout IsVisible="{Binding IsExpanded}" Spacing="10" Margin="0,14,0,0">
+                                <BoxView Style="{StaticResource Divider}" Margin="0,0,0,2" />
+                                <VerticalStackLayout BindableLayout.ItemsSource="{Binding Sections}" Spacing="10">
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource ElevatedCard}" Padding="14">
+                                                <Border.Triggers>
+                                                    <DataTrigger TargetType="Border" Binding="{Binding NoteType}" Value="{x:Static help:HelpNoteType.Tip}">
+                                                        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource LightInfoSurface}, Dark={StaticResource DarkInfoSurface}}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger TargetType="Border" Binding="{Binding NoteType}" Value="{x:Static help:HelpNoteType.Security}">
+                                                        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource LightInfoSurface}, Dark={StaticResource DarkInfoSurface}}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger TargetType="Border" Binding="{Binding NoteType}" Value="{x:Static help:HelpNoteType.Warning}">
+                                                        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource LightWarningSurface}, Dark={StaticResource DarkWarningSurface}}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger TargetType="Border" Binding="{Binding NoteType}" Value="{x:Static help:HelpNoteType.Danger}">
+                                                        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource LightDangerSurface}, Dark={StaticResource DarkDangerSurface}}" />
+                                                    </DataTrigger>
+                                                </Border.Triggers>
+                                                <VerticalStackLayout Spacing="8">
+                                                    <Label Text="{Binding Heading}"
+                                                           FontFamily="OpenSansSemibold"
+                                                           FontSize="15"
+                                                           SemanticProperties.HeadingLevel="Level4" />
+                                                    <Label Text="{Binding Body}"
+                                                           Style="{StaticResource Muted}"
+                                                           LineHeight="1.25" />
+
+                                                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Steps}" Spacing="8">
+                                                        <BindableLayout.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Grid ColumnDefinitions="30,*" ColumnSpacing="8">
+                                                                    <Border WidthRequest="26"
+                                                                            HeightRequest="26"
+                                                                            StrokeThickness="0"
+                                                                            BackgroundColor="{AppThemeBinding Light={StaticResource LightIconSurface}, Dark={StaticResource DarkIconSurface}}"
+                                                                            StrokeShape="RoundRectangle 9"
+                                                                            VerticalOptions="Start">
+                                                                        <Label Text="{Binding Number}"
+                                                                               Style="{StaticResource AccentEyebrow}"
+                                                                               CharacterSpacing="0"
+                                                                               HorizontalTextAlignment="Center"
+                                                                               VerticalTextAlignment="Center" />
+                                                                    </Border>
+                                                                    <Label Grid.Column="1"
+                                                                           Text="{Binding Text}"
+                                                                           FontSize="13"
+                                                                           LineHeight="1.25" />
+                                                                </Grid>
+                                                            </DataTemplate>
+                                                        </BindableLayout.ItemTemplate>
+                                                    </VerticalStackLayout>
+
+                                                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Troubleshooting}" Spacing="10">
+                                                        <BindableLayout.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <VerticalStackLayout Spacing="3">
+                                                                    <Label Text="{Binding Problem}"
+                                                                           FontFamily="OpenSansSemibold"
+                                                                           FontSize="13" />
+                                                                    <Label Text="{Binding Solution}"
+                                                                           Style="{StaticResource Muted}"
+                                                                           LineHeight="1.25" />
+                                                                </VerticalStackLayout>
+                                                            </DataTemplate>
+                                                        </BindableLayout.ItemTemplate>
+                                                    </VerticalStackLayout>
+                                                </VerticalStackLayout>
+                                            </Border>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </VerticalStackLayout>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+
+            <CollectionView.EmptyView>
+                <VerticalStackLayout Spacing="10" Padding="18,42" HorizontalOptions="Center">
+                    <Border Style="{StaticResource IconTile}"
+                            WidthRequest="64"
+                            HeightRequest="64"
+                            StrokeShape="RoundRectangle 22"
+                            HorizontalOptions="Center">
+                        <Label Text="?"
+                               Style="{StaticResource AccentIcon}"
+                               HorizontalTextAlignment="Center"
+                               VerticalTextAlignment="Center" />
+                    </Border>
+                    <Label Text="No help topics found"
+                           FontFamily="OpenSansSemibold"
+                           FontSize="17"
+                           HorizontalTextAlignment="Center" />
+                    <Label Text="Try a shorter phrase or clear the search."
+                           Style="{StaticResource Muted}"
+                           HorizontalTextAlignment="Center" />
+                    <Button Text="Clear search"
+                            Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.ClearSearchCommand}"
+                            Style="{StaticResource SecondaryButton}" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+
+            <CollectionView.Footer>
+                <VerticalStackLayout Padding="0,16,0,28" Spacing="4">
+                    <Label Text="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.VersionText}"
+                           Style="{StaticResource Muted}"
+                           FontSize="11"
+                           HorizontalTextAlignment="Center" />
+                    <Label Text="Help content is stored on this device and does not read your vault."
+                           Style="{StaticResource Muted}"
+                           FontSize="10"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </CollectionView.Footer>
+        </CollectionView>
+    </Grid>
+</ContentPage>

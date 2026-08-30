@@ -63,7 +63,7 @@ public sealed partial class RegistrationViewModel(
         await keyManagement.InitializeVaultAsync(Passphrase);
         await SeedDefaultGroupsAsync();
         ClearSensitiveState();
-        await Shell.Current.GoToAsync("//main/dashboard");
+        await ((AppShell)Shell.Current).NavigateToFreshMainAsync();
     }, "Unable to create your local vault.");
 
     [RelayCommand]

@@ -4,7 +4,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              Title="Settings"
              BackgroundColor="{AppThemeBinding Light={StaticResource LightBackground}, Dark={StaticResource DarkBackground}}">
-    <ScrollView>
+    <ScrollView x:Name="SettingsScrollView">
         <VerticalStackLayout Style="{StaticResource PageContent}" MaximumWidthRequest="680">
             <VerticalStackLayout Spacing="3">
                 <Label Text="MAKE IT YOURS" Style="{StaticResource AccentEyebrow}" />
@@ -116,6 +116,25 @@
                         <Label Text="⇄" Style="{StaticResource AccentIcon}" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
                     </Border>
                     <Label Grid.Column="1" Text="{Binding ConflictStatusText}" FontFamily="OpenSansSemibold" VerticalTextAlignment="Center" />
+                    <Label Grid.Column="2" Text="›" Style="{StaticResource Muted}" FontSize="25" VerticalTextAlignment="Center" />
+                </Grid>
+            </Border>
+
+            <Label Text="HELP &amp; SUPPORT" Style="{StaticResource Eyebrow}" Margin="0,8,0,0" />
+            <Border Style="{StaticResource Card}"
+                    SemanticProperties.Description="Help and support. Learn how to use every PassCrate page. Double tap to open."
+                    AutomationProperties.IsInAccessibleTree="True">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding HelpCommand}" />
+                </Border.GestureRecognizers>
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" MinimumHeightRequest="44">
+                    <Border Style="{StaticResource IconTile}" WidthRequest="42" HeightRequest="42" StrokeShape="RoundRectangle 13">
+                        <Label Text="?" Style="{StaticResource AccentIcon}" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    </Border>
+                    <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                        <Label Text="Help and support" FontFamily="OpenSansSemibold" />
+                        <Label Text="Learn how to use every PassCrate page" Style="{StaticResource Muted}" />
+                    </VerticalStackLayout>
                     <Label Grid.Column="2" Text="›" Style="{StaticResource Muted}" FontSize="25" VerticalTextAlignment="Center" />
                 </Grid>
             </Border>

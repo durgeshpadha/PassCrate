@@ -50,6 +50,16 @@ public sealed partial class DashboardViewModel(
         ConflictBadge = conflicts.Count == 0 ? string.Empty : $"{conflicts.Count} sync conflict(s) need review";
     }, "Unable to load your vault.");
 
+    public void ResetState()
+    {
+        Groups.Clear();
+        RecentSecrets.Clear();
+        SecretCount = 0;
+        GroupCount = 0;
+        ConflictBadge = string.Empty;
+        ErrorMessage = string.Empty;
+    }
+
     [RelayCommand]
     private static Task AddSecretAsync() => Shell.Current.GoToAsync(nameof(Views.SecretEditorPage));
 

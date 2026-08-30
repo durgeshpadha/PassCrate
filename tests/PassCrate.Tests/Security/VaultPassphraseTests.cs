@@ -12,6 +12,9 @@ public sealed class VaultPassphraseTests
         await using var context = await TestContext.CreateAsync();
         await context.Keys.InitializeVaultAsync(Passphrase);
         Assert.True(context.Keys.IsUnlocked);
+        await context.Keys.VerifyPassphraseAsync(Passphrase);
+        await Assert.ThrowsAsync<VaultUnlockException>(() =>
+            context.Keys.VerifyPassphraseAsync("wrong passphrase that is long enough"));
         context.Keys.LockVault();
         await Assert.ThrowsAsync<VaultUnlockException>(() => context.Keys.UnlockVaultAsync("wrong passphrase that is long enough"));
         await context.Keys.UnlockVaultAsync(Passphrase);

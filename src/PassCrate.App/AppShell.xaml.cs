@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using PassCrate.App.Views;
 using PassCrate.Core.Interfaces;
+using PassCrate.Core.Security;
 
 namespace PassCrate.App;
 
@@ -8,6 +9,7 @@ public partial class AppShell : Shell
 {
     private readonly IVaultRepository _repository;
     private readonly IKeyManagementService _keyManagement;
+    private readonly TabBar _mainTabs;
 
     public AppShell(
         IServiceProvider services,
@@ -21,11 +23,11 @@ public partial class AppShell : Shell
         Items.Add(CreateShellContent<RegistrationPage>(services, "register", "Create account"));
         Items.Add(CreateShellContent<UnlockPage>(services, "unlock", "Unlock"));
 
-        var tabs = new TabBar { Route = "main" };
-        tabs.Items.Add(CreateShellContent<DashboardPage>(services, "dashboard", "Home", "⌂"));
-        tabs.Items.Add(CreateShellContent<SearchPage>(services, "search", "Search", "⌕"));
-        tabs.Items.Add(CreateShellContent<SettingsPage>(services, "settings", "Settings", "⚙"));
-        Items.Add(tabs);
+        _mainTabs = new TabBar { Route = "main" };
+        _mainTabs.Items.Add(CreateShellContent<DashboardPage>(services, "dashboard", "Home", "⌂"));
+        _mainTabs.Items.Add(CreateShellContent<SearchPage>(services, "search", "Search", "⌕"));
+        _mainTabs.Items.Add(CreateShellContent<SettingsPage>(services, "settings", "Settings", "⚙"));
+        Items.Add(_mainTabs);
 
         Routing.RegisterRoute(nameof(GroupDetailsPage), typeof(GroupDetailsPage));
         Routing.RegisterRoute(nameof(GroupEditorPage), typeof(GroupEditorPage));
@@ -36,6 +38,7 @@ public partial class AppShell : Shell
         Routing.RegisterRoute(nameof(CloudSyncPage), typeof(CloudSyncPage));
         Routing.RegisterRoute(nameof(CloudRestorePage), typeof(CloudRestorePage));
         Routing.RegisterRoute(nameof(ConflictReviewPage), typeof(ConflictReviewPage));
+        Routing.RegisterRoute(nameof(HelpPage), typeof(HelpPage));
 
         Loaded += OnLoaded;
         Navigating += OnNavigating;
@@ -52,16 +55,7 @@ public partial class AppShell : Shell
     private void OnNavigating(object? sender, ShellNavigatingEventArgs eventArgs)
     {
         var target = eventArgs.Target.Location.OriginalString;
-        var requiresUnlockedVault =
-            target.Contains("//main", StringComparison.OrdinalIgnoreCase) ||
-            target.Contains(nameof(GroupDetailsPage), StringComparison.Ordinal) ||
-            target.Contains(nameof(GroupEditorPage), StringComparison.Ordinal) ||
-            target.Contains(nameof(SecretDetailsPage), StringComparison.Ordinal) ||
-            target.Contains(nameof(SecretEditorPage), StringComparison.Ordinal) ||
-            target.Contains(nameof(ChangePasswordPage), StringComparison.Ordinal) ||
-            target.Contains(nameof(CloudSyncPage), StringComparison.Ordinal) ||
-            target.Contains(nameof(ConflictReviewPage), StringComparison.Ordinal) ||
-            target.Contains(nameof(SettingsPage), StringComparison.Ordinal);
+        var requiresUnlockedVault = NavigationSecurityPolicy.RequiresUnlockedVault(target);
         if (!requiresUnlockedVault || _keyManagement.IsUnlocked)
         {
             return;
@@ -86,6 +80,42 @@ public partial class AppShell : Shell
             "settings" => GoToAsync("//main/settings"),
             _ => Task.CompletedTask,
         };
+    }
+
+    public async Task NavigateToFreshMainAsync()
+    {
+        await GoToAsync("//main/dashboard");
+        await ClearMainTabStacksAsync();
+    }
+
+    public async Task NavigateToWelcomeAfterResetAsync()
+    {
+        if (Application.Current is not null)
+        {
+            Application.Current.UserAppTheme = Microsoft.Maui.ApplicationModel.AppTheme.Unspecified;
+        }
+
+        await GoToAsync("//welcome");
+        await ClearMainTabStacksAsync();
+    }
+
+    private async Task ClearMainTabStacksAsync()
+    {
+        foreach (var section in _mainTabs.Items)
+        {
+            if (section.Navigation.NavigationStack.Count > 1)
+            {
+                await section.Navigation.PopToRootAsync(animated: false);
+            }
+
+            foreach (var content in section.Items)
+            {
+                if (content.Content is IResettablePageState resettablePage)
+                {
+                    resettablePage.ResetPageState();
+                }
+            }
+        }
     }
 
     private static void ApplyTheme(PassCrate.Core.Models.AppTheme theme)

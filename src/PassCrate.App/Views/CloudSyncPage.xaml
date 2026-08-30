@@ -21,7 +21,7 @@
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Spacing="10">
                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                        <Label Text="●" TextColor="{StaticResource Success}" VerticalTextAlignment="Center" />
+                        <Label Text="●" TextColor="{Binding SyncStatusColor}" VerticalTextAlignment="Center" />
                         <VerticalStackLayout Grid.Column="1" Spacing="2">
                             <Label Text="Sync status" FontFamily="OpenSansSemibold" />
                             <Label Text="{Binding StatusText}" Style="{StaticResource Muted}" />
@@ -53,15 +53,50 @@
                             </Border.Triggers>
                             <Entry Text="{Binding VaultPassphrase}" Placeholder="Vault passphrase" IsPassword="True" />
                         </Border>
+                        <Label Text="{Binding ErrorMessage}"
+                               Style="{StaticResource ErrorText}"
+                               IsVisible="{Binding IsVaultPassphraseInvalid}" />
                     </VerticalStackLayout>
                 </Border>
                 <Border Style="{StaticResource WarningCard}">
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10"><Label Text="!" TextColor="{StaticResource Warning}" FontFamily="OpenSansSemibold" /><VerticalStackLayout Grid.Column="1" Spacing="3"><Label Text="Remember your passphrase" FontFamily="OpenSansSemibold" /><Label Text="Without it, the cloud backup cannot be restored on another device." Style="{StaticResource Muted}" /></VerticalStackLayout></Grid>
                 </Border>
+                <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}">
+                    <Label.Triggers>
+                        <DataTrigger TargetType="Label" Binding="{Binding ErrorMessage}" Value="">
+                            <Setter Property="IsVisible" Value="False" />
+                        </DataTrigger>
+                        <DataTrigger TargetType="Label" Binding="{Binding IsVaultPassphraseInvalid}" Value="True">
+                            <Setter Property="IsVisible" Value="False" />
+                        </DataTrigger>
+                    </Label.Triggers>
+                </Label>
+                <HorizontalStackLayout HorizontalOptions="Center"
+                                       Spacing="10"
+                                       IsVisible="{Binding IsBusy}">
+                    <ActivityIndicator IsRunning="{Binding IsBusy}"
+                                       VerticalOptions="Center" />
+                    <Label Text="Connecting securely…"
+                           Style="{StaticResource Muted}"
+                           VerticalTextAlignment="Center" />
+                </HorizontalStackLayout>
                 <Button Text="Connect and turn on cloud sync" Command="{Binding EnableCommand}" IsEnabled="{Binding IsNotBusy}" />
             </VerticalStackLayout>
 
             <VerticalStackLayout IsVisible="{Binding IsEnabled}" Spacing="12">
+                <ActivityIndicator IsRunning="{Binding IsBusy}"
+                                   IsVisible="{Binding IsBusy}"
+                                   HorizontalOptions="Center" />
+                <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}">
+                    <Label.Triggers>
+                        <DataTrigger TargetType="Label" Binding="{Binding ErrorMessage}" Value="">
+                            <Setter Property="IsVisible" Value="False" />
+                        </DataTrigger>
+                        <DataTrigger TargetType="Label" Binding="{Binding IsVaultPassphraseInvalid}" Value="True">
+                            <Setter Property="IsVisible" Value="False" />
+                        </DataTrigger>
+                    </Label.Triggers>
+                </Label>
                 <Button Text="Sync now" Command="{Binding SyncNowCommand}" IsEnabled="{Binding IsNotBusy}" />
                 <Border Style="{StaticResource Card}"><Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12"><Border Style="{StaticResource IconTile}" WidthRequest="42" HeightRequest="42" StrokeShape="RoundRectangle 13"><Label Text="⌁" Style="{StaticResource AccentIcon}" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" /></Border><VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center"><Label Text="Wi-Fi only" FontFamily="OpenSansSemibold" /><Label Text="Avoid sync over cellular data" Style="{StaticResource Muted}" /></VerticalStackLayout><Switch Grid.Column="2" IsToggled="{Binding WifiOnly}" /></Grid></Border>
                 <Button Text="Disconnect (keep cloud files)" Command="{Binding DisconnectCommand}" Style="{StaticResource SecondaryButton}" />
@@ -111,8 +146,6 @@
                 </Border>
             </VerticalStackLayout>
 
-            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
-            <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

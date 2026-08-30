@@ -12,8 +12,8 @@
             <Label Text="PassCrate" FontFamily="OpenSansSemibold" FontSize="19" VerticalTextAlignment="Center" />
         </HorizontalStackLayout>
 
-        <VerticalStackLayout Grid.Row="1"
-                             VerticalOptions="Center"
+        <ScrollView Grid.Row="1">
+        <VerticalStackLayout Padding="0,24,0,24"
                              Spacing="15"
                              MaximumWidthRequest="420"
                              HorizontalOptions="Fill">
@@ -50,14 +50,29 @@
                     Command="{Binding UnlockWithBiometricCommand}"
                     IsVisible="{Binding IsBiometricAvailable}"
                     Style="{StaticResource SecondaryButton}" />
+            <Border Style="{StaticResource DangerCard}"
+                    IsVisible="{Binding IsDeviceRecoveryRequired}">
+                <VerticalStackLayout Spacing="9">
+                    <Label Text="This device can no longer open the saved vault. If you have an encrypted cloud backup, you can restore it after securely resetting the unreadable local vault."
+                           Style="{StaticResource Muted}" />
+                    <Button Text="Restore from cloud backup"
+                            Command="{Binding RestoreFromCloudCommand}"
+                            Style="{StaticResource SecondaryButton}" />
+                </VerticalStackLayout>
+            </Border>
             <Button Text="Forgot your passphrase?"
                     Command="{Binding ForgotPassphraseCommand}"
                     Style="{StaticResource TertiaryButton}" />
+            <Button Text="Need help unlocking?"
+                    Command="{Binding HelpCommand}"
+                    Style="{StaticResource TertiaryButton}"
+                    SemanticProperties.Description="Open help for unlocking and recovering PassCrate" />
             <Label Text="Passphrases cannot be recovered. You can reset PassCrate and start again, but this device's saved vault will be permanently deleted."
                    Style="{StaticResource Muted}"
                    FontSize="10"
                    HorizontalTextAlignment="Center" />
         </VerticalStackLayout>
+        </ScrollView>
 
         <Label Grid.Row="2"
                Text="Your passphrase never leaves this device."

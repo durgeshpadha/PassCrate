@@ -89,11 +89,11 @@ public sealed partial class CloudRestoreViewModel(
         }
         ClearSensitiveState();
         scheduler.NotifyVaultUnlocked();
-        await Shell.Current.GoToAsync("//main/dashboard");
+        await ((AppShell)Shell.Current).NavigateToFreshMainAsync();
     }, "Unable to restore the cloud backup.");
 
     [RelayCommand]
-    private static Task CancelAsync() => Shell.Current.GoToAsync("//welcome");
+    private static Task CancelAsync() => Shell.Current.GoToAsync("..");
 
     private CloudProviderKind ParseProvider() => SelectedProvider == "Dropbox"
         ? CloudProviderKind.Dropbox

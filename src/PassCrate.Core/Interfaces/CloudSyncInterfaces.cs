@@ -111,6 +111,7 @@ public interface ICloudSyncService
     Task DeleteCloudVaultAsync(string vaultPassphrase, string typedConfirmation, CancellationToken cancellationToken = default);
     Task DeleteAllProviderDataAsync(string vaultPassphrase, string typedConfirmation, CancellationToken cancellationToken = default);
     void CancelActiveSync();
+    void ResetLocalState();
 }
 
 public interface ICloudSyncScheduler

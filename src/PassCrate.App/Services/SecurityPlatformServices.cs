@@ -110,6 +110,7 @@ public sealed class UserErrorMessageMapper : IUserErrorMessageMapper
         VaultUnlockException => "That passphrase did not unlock your vault. Check it and try again.",
         VaultUnlockThrottledException throttled => throttled.Message,
         DeviceKeyUnavailableException => "This device can no longer open the saved vault. Restore a cloud backup or reset PassCrate.",
+        CloudProviderConfigurationException configuration => configuration.Message,
         CloudAuthorizationRequiredException => "Reconnect your Google Drive or Dropbox account to continue.",
         CloudQuotaException => "Your cloud storage is temporarily unavailable or full. Try again later or free some space.",
         CloudResourceLimitException => "PassCrate found too much cloud data to process safely. Remove old backups and try again.",
@@ -132,14 +133,26 @@ public interface IFirstLaunchSecurityService
 public sealed class FirstLaunchSecurityService(
     IDeviceCredentialStore credentials,
     IDeviceKeyProtectionService deviceKeys,
-    IGoogleDrivePlatformAuthorization googleAuthorization) : IFirstLaunchSecurityService
+    IGoogleDrivePlatformAuthorization googleAuthorization,
+    IVaultRepository repository,
+    IInstallationStateStore installationState) : IFirstLaunchSecurityService
 {
-    private const string InstallSentinel = "passcrate.install.cleaned.v2";
-
     public async Task EnsureCleanInstallAsync(CancellationToken cancellationToken = default)
     {
-        if (Preferences.Default.Get(InstallSentinel, false))
+        if (installationState.IsCleanupComplete)
         {
+            return;
+        }
+
+        await repository.InitializeAsync(cancellationToken);
+        var hasLocalVault = await repository.GetVaultMetadataAsync(cancellationToken) is not null;
+        if (!InstallationSecurityPolicy.ShouldClearDeviceSecurityState(
+                installationState.IsCleanupComplete,
+                hasLocalVault))
+        {
+            // A missing preference can follow an in-app reset or preference migration.
+            // Vault metadata is authoritative: never destroy keys for an existing vault.
+            installationState.MarkCleanupComplete();
             return;
         }
 
@@ -155,6 +168,6 @@ public sealed class FirstLaunchSecurityService(
             // Local credential cleanup remains authoritative.
         }
 
-        Preferences.Default.Set(InstallSentinel, true);
+        installationState.MarkCleanupComplete();
     }
 }

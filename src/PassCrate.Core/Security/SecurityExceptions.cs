@@ -27,6 +27,8 @@ public sealed class GroupNotEmptyException() : Exception("Move the secrets in th
 
 public sealed class CloudAuthorizationRequiredException() : Exception("Reconnect your cloud provider to continue syncing.");
 
+public sealed class CloudProviderConfigurationException(string message) : Exception(message);
+
 public sealed class CloudVaultMismatchException() : Exception(
     "This provider account already contains a different PassCrate vault. Restore it or choose another provider account.");
 

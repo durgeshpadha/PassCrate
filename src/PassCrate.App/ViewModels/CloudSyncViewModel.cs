@@ -25,6 +25,7 @@ public sealed partial class CloudSyncViewModel(
     [ObservableProperty] private string deleteConfirmation = string.Empty;
     [ObservableProperty] private string deleteAllConfirmation = string.Empty;
     [ObservableProperty] private bool canReconnect;
+    [ObservableProperty] private Color syncStatusColor = Color.FromArgb("#EF4444");
     [ObservableProperty] private bool isVaultPassphraseInvalid;
     [ObservableProperty] private bool isDeleteConfirmationInvalid;
     [ObservableProperty] private bool isDeleteAllConfirmationInvalid;
@@ -46,7 +47,22 @@ public sealed partial class CloudSyncViewModel(
                 : IsEnabled ? "Ready to synchronize." : "Cloud sync is off.";
         }
 
-        ApplyStatus(cloudSync.Status);
+        if (configuration is { IsEnabled: true } &&
+            cloudSync.Status.State == CloudSyncState.Disabled &&
+            cloudSync.Status.Provider is null)
+        {
+            ApplyStatus(new CloudSyncStatus
+            {
+                State = CloudSyncState.Ready,
+                Provider = configuration.Provider,
+                LastSuccessfulSyncAt = configuration.LastSuccessfulSyncAt,
+                Message = "Ready to synchronize.",
+            });
+        }
+        else
+        {
+            ApplyStatus(cloudSync.Status);
+        }
         cloudSync.StatusChanged += OnStatusChanged;
         _isLoading = false;
     }
@@ -215,6 +231,15 @@ public sealed partial class CloudSyncViewModel(
             ? string.Empty
             : $"{status.ConflictCount} conflict item(s) preserved for review.";
         CanReconnect = status.State == CloudSyncState.ReconnectRequired;
+        SyncStatusColor = status.ConflictCount > 0
+            ? Color.FromArgb("#F59E0B")
+            : status.State switch
+            {
+                CloudSyncState.Disabled => Color.FromArgb("#EF4444"),
+                CloudSyncState.Ready => Color.FromArgb("#10B981"),
+                CloudSyncState.Connecting or CloudSyncState.Syncing => Color.FromArgb("#5B5CE2"),
+                _ => Color.FromArgb("#F59E0B"),
+            };
     }
 
     private CloudProviderKind ParseProvider() => SelectedProvider == "Dropbox"

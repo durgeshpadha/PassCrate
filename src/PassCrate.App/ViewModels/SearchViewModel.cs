@@ -8,12 +8,19 @@ namespace PassCrate.App.ViewModels;
 
 public sealed partial class SearchViewModel(IVaultService vaultService) : BaseViewModel
 {
+    private bool isResetting;
     public ObservableCollection<VaultGroup> GroupResults { get; } = [];
     public ObservableCollection<SecretSummary> SecretResults { get; } = [];
 
     [ObservableProperty] private string query = string.Empty;
 
-    partial void OnQueryChanged(string value) => SearchCommand.Execute(null);
+    partial void OnQueryChanged(string value)
+    {
+        if (!isResetting)
+        {
+            SearchCommand.Execute(null);
+        }
+    }
 
     [RelayCommand]
     private async Task SearchAsync() => await RunBusyAsync(async () =>
@@ -39,4 +46,14 @@ public sealed partial class SearchViewModel(IVaultService vaultService) : BaseVi
     [RelayCommand]
     private static Task OpenGroupAsync(VaultGroup group) =>
         Shell.Current.GoToAsync($"{nameof(Views.GroupDetailsPage)}?id={Uri.EscapeDataString(group.Id)}");
+
+    public void ResetState()
+    {
+        isResetting = true;
+        Query = string.Empty;
+        isResetting = false;
+        GroupResults.Clear();
+        SecretResults.Clear();
+        ErrorMessage = string.Empty;
+    }
 }

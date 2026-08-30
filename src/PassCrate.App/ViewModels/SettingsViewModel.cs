@@ -66,6 +66,19 @@ public sealed partial class SettingsViewModel(
         }
     }
 
+    public void ResetState()
+    {
+        isLoading = true;
+        BiometricEnabled = false;
+        SelectedAutoLock = "1 minute";
+        SelectedTheme = "System";
+        SelectedClipboardTimeout = "30 seconds";
+        ConflictStatusText = "No unresolved sync conflicts";
+        CloudStatusText = "Cloud sync is off";
+        ErrorMessage = string.Empty;
+        isLoading = false;
+    }
+
     partial void OnBiometricEnabledChanged(bool value)
     {
         if (!isLoading)
@@ -135,6 +148,9 @@ public sealed partial class SettingsViewModel(
     [RelayCommand]
     private static Task ReviewConflictsAsync() =>
         Shell.Current.GoToAsync(nameof(Views.ConflictReviewPage));
+
+    [RelayCommand]
+    private static Task HelpAsync() => Shell.Current.GoToAsync(nameof(Views.HelpPage));
 
     [RelayCommand]
     private static Task ResetAsync() => Shell.Current.GoToAsync(nameof(Views.ResetPage));

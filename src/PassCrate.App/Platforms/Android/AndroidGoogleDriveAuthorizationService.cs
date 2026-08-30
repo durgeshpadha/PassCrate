@@ -20,7 +20,20 @@ public sealed class AndroidGoogleDriveAuthorizationService : IGoogleDrivePlatfor
         var request = AuthorizationRequest.InvokeBuilder()
             .SetRequestedScopes([new Scope(DriveAppDataScope)])
             .Build();
-        var result = (AuthorizationResult)await client.Authorize(request);
+        AuthorizationResult result;
+        try
+        {
+            result = (AuthorizationResult)await client.Authorize(request);
+        }
+        catch (ApiException exception) when (exception.StatusCode == CommonStatusCodes.DeveloperError)
+        {
+            throw new CloudProviderConfigurationException(
+                "Google Drive is not configured for this PassCrate build. Register the app package and signing certificate in Google Cloud, then try again.");
+        }
+        catch (ApiException)
+        {
+            throw new CloudAuthorizationRequiredException();
+        }
         if (result.HasResolution)
         {
             if (!interactive || result.PendingIntent is null)

@@ -4,7 +4,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              BackgroundColor="{AppThemeBinding Light={StaticResource LightBackground}, Dark={StaticResource DarkBackground}}"
              Title="PassCrate">
-    <ScrollView>
+    <ScrollView x:Name="DashboardScrollView">
             <VerticalStackLayout Padding="20,16,20,32" Spacing="18" MaximumWidthRequest="900" HorizontalOptions="Fill">
                 <Grid ColumnDefinitions="*,Auto">
                     <VerticalStackLayout Spacing="3">

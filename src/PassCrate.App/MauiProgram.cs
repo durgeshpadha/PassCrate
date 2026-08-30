@@ -58,6 +58,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IUserErrorMessageMapper, UserErrorMessageMapper>();
         builder.Services.AddSingleton<IBiometricUnlockService, BiometricUnlockService>();
         builder.Services.AddSingleton<IAutoLockService, AutoLockService>();
+        builder.Services.AddSingleton<IInstallationStateStore, InstallationStateStore>();
         builder.Services.AddSingleton<IApplicationResetService, ApplicationResetService>();
         builder.Services.AddSingleton<IFirstLaunchSecurityService, FirstLaunchSecurityService>();
         builder.Services.AddSingleton(new HttpClient { Timeout = TimeSpan.FromSeconds(45) });
@@ -96,6 +97,7 @@ public static class MauiProgram
         builder.Services.AddTransient<CloudSyncViewModel>();
         builder.Services.AddTransient<CloudRestoreViewModel>();
         builder.Services.AddTransient<ConflictReviewViewModel>();
+        builder.Services.AddTransient<HelpViewModel>();
 
         builder.Services.AddTransient<WelcomePage>();
         builder.Services.AddTransient<RegistrationPage>();
@@ -112,6 +114,7 @@ public static class MauiProgram
         builder.Services.AddTransient<CloudSyncPage>();
         builder.Services.AddTransient<CloudRestorePage>();
         builder.Services.AddTransient<ConflictReviewPage>();
+        builder.Services.AddTransient<HelpPage>();
 
 #if DEBUG
         builder.Logging.AddDebug();

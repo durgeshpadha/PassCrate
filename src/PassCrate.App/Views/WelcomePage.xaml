@@ -63,6 +63,10 @@
             </Grid>
             <Button Text="Create my vault  →" Command="{Binding CreateAccountCommand}" />
             <Button Text="Restore from cloud" Style="{StaticResource SecondaryButton}" Command="{Binding RestoreFromCloudCommand}" />
+            <Button Text="Need help?"
+                    Style="{StaticResource TertiaryButton}"
+                    Command="{Binding HelpCommand}"
+                    SemanticProperties.Description="Open help for getting started with PassCrate" />
         </VerticalStackLayout>
     </Grid>
 </ContentPage>

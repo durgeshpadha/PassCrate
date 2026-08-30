@@ -11,6 +11,8 @@ public sealed class ApplicationResetService(
     ICloudSyncService cloudSync,
     ISyncRepository syncRepository,
     ICloudAuthorizationService cloudAuthorization,
+    IAutoLockService autoLock,
+    IInstallationStateStore installationState,
     HttpClient httpClient) : IApplicationResetService
 {
     public async Task ResetAsync(CancellationToken cancellationToken = default)
@@ -48,7 +50,9 @@ public sealed class ApplicationResetService(
         await repository.DeleteAllAsync(CancellationToken.None);
         await deviceKeys.DeleteAllKeysAsync(CancellationToken.None);
         await credentials.RemoveNamespaceAsync(CancellationToken.None);
-        Preferences.Default.Clear();
+        installationState.ClearUserPreferencesForReset();
+        autoLock.UpdateTimeout(PassCrate.Core.Models.AutoLockTimeout.OneMinute);
+        cloudSync.ResetLocalState();
         ClearCacheDirectory();
 
         try
