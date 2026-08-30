@@ -119,7 +119,9 @@ public sealed class CloudSyncService(
                     // The prior snapshots were protected by the old passphrase.
                     // Keep the vault locally disconnected until the replacement has
                     // uploaded and every old recovery envelope has been removed.
-                    var state = await syncRepository.ExportStateV2Async(cancellationToken).ConfigureAwait(false);
+                    var state = await syncRepository.ExportStateV2Async(
+                        configuration.DeviceId,
+                        cancellationToken).ConfigureAwait(false);
                     var upload = await UploadSnapshotOnlyAsync(
                         storage,
                         configuration,
@@ -203,7 +205,9 @@ public sealed class CloudSyncService(
                     dataEncryptionKey,
                     operationToken).ConfigureAwait(false);
                 var heads = FindHeads(valid);
-                var merged = await syncRepository.ExportStateV2Async(operationToken).ConfigureAwait(false);
+                var merged = await syncRepository.ExportStateV2Async(
+                    configuration.DeviceId,
+                    operationToken).ConfigureAwait(false);
                 var conflicts = Array.Empty<SyncConflictSet>();
                 foreach (var head in heads)
                 {
@@ -318,7 +322,9 @@ public sealed class CloudSyncService(
                     dataEncryptionKey,
                     cancellationToken).ConfigureAwait(false);
                 var replacement = configuration with { Recovery = recovery };
-                var state = await syncRepository.ExportStateV2Async(cancellationToken).ConfigureAwait(false);
+                var state = await syncRepository.ExportStateV2Async(
+                    configuration.DeviceId,
+                    cancellationToken).ConfigureAwait(false);
 
                 // Upload the replacement first.  Until this succeeds, the old local
                 // passphrase and cloud recovery envelope remain authoritative.
@@ -697,7 +703,9 @@ public sealed class CloudSyncService(
         ReadOnlyMemory<byte> dataEncryptionKey,
         CancellationToken cancellationToken)
     {
-        var state = await syncRepository.ExportStateV2Async(cancellationToken).ConfigureAwait(false);
+        var state = await syncRepository.ExportStateV2Async(
+            configuration.DeviceId,
+            cancellationToken).ConfigureAwait(false);
         var result = await UploadStateAsync(
             storage,
             configuration,

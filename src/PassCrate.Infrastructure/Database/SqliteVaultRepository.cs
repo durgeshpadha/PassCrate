@@ -355,11 +355,12 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
         await _database.DeleteAsync<CloudRestoreJournalEntity>(1).ConfigureAwait(false);
     }
 
-    public async Task<CloudVaultStateV2> ExportStateV2Async(CancellationToken cancellationToken = default)
+    public async Task<CloudVaultStateV2> ExportStateV2Async(
+        string deviceId,
+        CancellationToken cancellationToken = default)
     {
-        var configuration = await GetConfigurationAsync(cancellationToken).ConfigureAwait(false)
-            ?? throw new InvalidOperationException("Cloud sync is not configured.");
-        await InitializeRecordVectorsAsync(configuration.DeviceId, cancellationToken).ConfigureAwait(false);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+        await InitializeRecordVectorsAsync(deviceId, cancellationToken).ConfigureAwait(false);
         var entities = await _database.Table<SyncRecordRevisionEntity>().ToListAsync().ConfigureAwait(false);
         return new CloudVaultStateV2
         {

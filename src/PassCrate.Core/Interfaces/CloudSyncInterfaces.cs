@@ -68,7 +68,9 @@ public interface ISyncRepository
     Task InitializeRecordVectorsAsync(string deviceId, CancellationToken cancellationToken = default);
     Task BeginRestoreAsync(CancellationToken cancellationToken = default);
     Task CompleteRestoreAsync(CancellationToken cancellationToken = default);
-    Task<CloudVaultStateV2> ExportStateV2Async(CancellationToken cancellationToken = default);
+    Task<CloudVaultStateV2> ExportStateV2Async(
+        string deviceId,
+        CancellationToken cancellationToken = default);
     Task ApplyMergedStateV2Async(
         CloudVaultStateV2 state,
         CloudSyncConfiguration configuration,
