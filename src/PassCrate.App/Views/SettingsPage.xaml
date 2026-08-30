@@ -2,7 +2,8 @@
 <ContentPage x:Class="PassCrate.App.Views.SettingsPage"
              xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             Title="Settings">
+             Title="Settings"
+             BackgroundColor="{AppThemeBinding Light={StaticResource LightBackground}, Dark={StaticResource DarkBackground}}">
     <ScrollView>
         <VerticalStackLayout Style="{StaticResource PageContent}" MaximumWidthRequest="680">
             <VerticalStackLayout Spacing="3">
