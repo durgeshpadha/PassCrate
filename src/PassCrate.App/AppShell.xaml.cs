@@ -59,7 +59,6 @@ public partial class AppShell : Shell
             target.Contains(nameof(SecretDetailsPage), StringComparison.Ordinal) ||
             target.Contains(nameof(SecretEditorPage), StringComparison.Ordinal) ||
             target.Contains(nameof(ChangePasswordPage), StringComparison.Ordinal) ||
-            target.Contains(nameof(ResetPage), StringComparison.Ordinal) ||
             target.Contains(nameof(CloudSyncPage), StringComparison.Ordinal) ||
             target.Contains(nameof(ConflictReviewPage), StringComparison.Ordinal) ||
             target.Contains(nameof(SettingsPage), StringComparison.Ordinal);
@@ -70,6 +69,23 @@ public partial class AppShell : Shell
 
         eventArgs.Cancel();
         MainThread.BeginInvokeOnMainThread(async () => await GoToAsync("//unlock"));
+    }
+
+    public Task NavigateToSelectedTabRootAsync()
+    {
+        if (!_keyManagement.IsUnlocked)
+        {
+            return Task.CompletedTask;
+        }
+
+        var selectedRoute = CurrentItem?.CurrentItem?.CurrentItem?.Route;
+        return selectedRoute switch
+        {
+            "dashboard" => GoToAsync("//main/dashboard"),
+            "search" => GoToAsync("//main/search"),
+            "settings" => GoToAsync("//main/settings"),
+            _ => Task.CompletedTask,
+        };
     }
 
     private static void ApplyTheme(PassCrate.Core.Models.AppTheme theme)
@@ -102,7 +118,7 @@ public partial class AppShell : Shell
             {
                 Glyph = icon,
                 FontFamily = "OpenSansSemibold",
-                Color = Color.FromArgb("#4F46E5"),
+                Color = Color.FromArgb("#5B5CE2"),
                 Size = 20,
             },
         ContentTemplate = new DataTemplate(() => services.GetRequiredService<TPage>()),

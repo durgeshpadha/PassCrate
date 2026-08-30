@@ -1,14 +1,81 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<ContentPage x:Class="PassCrate.App.Views.RegistrationPage" xmlns="http://schemas.microsoft.com/dotnet/2021/maui" xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" Title="Create vault">
-    <ScrollView><VerticalStackLayout Padding="24,22,24,40" Spacing="16" MaximumWidthRequest="680" HorizontalOptions="Center">
-        <Label Text="CREATE YOUR PRIVATE SPACE" Style="{StaticResource Eyebrow}" /><Label Text="Set up PassCrate" Style="{StaticResource PageTitle}" />
-        <Label Text="One strong vault passphrase protects your secrets locally and, if enabled, in cloud sync." Style="{StaticResource Muted}" />
-        <Label Text="Vault passphrase" Style="{StaticResource SectionTitle}" Margin="0,12,0,0" /><Label Text="Use at least 16 memorable characters. PassCrate never stores it." Style="{StaticResource Muted}" />
-        <Border Style="{StaticResource FieldBorder}"><Entry Text="{Binding Passphrase}" Placeholder="Vault passphrase" IsPassword="True" ReturnType="Next" /></Border>
-        <Border Style="{StaticResource FieldBorder}"><Entry Text="{Binding ConfirmPassphrase}" Placeholder="Confirm vault passphrase" IsPassword="True" ReturnType="Done" /></Border>
-        <Border Stroke="#F2C46D" BackgroundColor="{AppThemeBinding Light=#FFF8E8, Dark=#2B2112}" StrokeShape="RoundRectangle 16" Padding="16"><VerticalStackLayout Spacing="4"><Label Text="No hidden recovery mechanism" FontFamily="OpenSansSemibold" /><Label Text="If you lose this passphrase, PassCrate cannot recover your secrets." Style="{StaticResource Muted}" /></VerticalStackLayout></Border>
-        <HorizontalStackLayout Spacing="8"><CheckBox IsChecked="{Binding AcceptsRecoveryWarning}" /><Label Text="I understand that my vault passphrase cannot be recovered." Style="{StaticResource Muted}" VerticalTextAlignment="Center" /></HorizontalStackLayout>
-        <Label Text="{Binding ErrorMessage}" TextColor="{StaticResource Danger}" IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" /><ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
-        <Button Text="Create encrypted vault" Command="{Binding CreateVaultCommand}" IsEnabled="{Binding IsNotBusy}" /><Button Text="Cancel" Style="{StaticResource SecondaryButton}" Command="{Binding CancelCommand}" />
-    </VerticalStackLayout></ScrollView>
+<ContentPage x:Class="PassCrate.App.Views.RegistrationPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             Title="Create vault">
+    <ScrollView>
+        <VerticalStackLayout Style="{StaticResource PageContent}" MaximumWidthRequest="620">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                <Border Style="{StaticResource IconTile}" WidthRequest="56" HeightRequest="56" StrokeShape="RoundRectangle 18">
+                    <Label Text="✦" Style="{StaticResource AccentIcon}" FontSize="25" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                </Border>
+                <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
+                    <Label Text="PRIVATE BY DEFAULT" Style="{StaticResource AccentEyebrow}" />
+                    <Label Text="Create your vault" Style="{StaticResource PageTitle}" FontSize="27" />
+                </VerticalStackLayout>
+            </Grid>
+            <Label Text="Choose one memorable passphrase to protect your encrypted vault on this device and during optional cloud recovery."
+                   Style="{StaticResource PageLead}" />
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="VAULT PASSPHRASE" Style="{StaticResource FieldLabel}" />
+                    <Border Style="{StaticResource FieldBorder}">
+                        <Border.Triggers>
+                            <DataTrigger TargetType="Border" Binding="{Binding IsPassphraseInvalid}" Value="True">
+                                <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                <Setter Property="StrokeThickness" Value="2" />
+                            </DataTrigger>
+                        </Border.Triggers>
+                        <Entry Text="{Binding Passphrase}" Placeholder="At least 16 characters" IsPassword="True" ReturnType="Next" />
+                    </Border>
+                    <Label Text="CONFIRM PASSPHRASE" Style="{StaticResource FieldLabel}" />
+                    <Border Style="{StaticResource FieldBorder}">
+                        <Border.Triggers>
+                            <DataTrigger TargetType="Border" Binding="{Binding IsConfirmPassphraseInvalid}" Value="True">
+                                <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                <Setter Property="StrokeThickness" Value="2" />
+                            </DataTrigger>
+                        </Border.Triggers>
+                        <Entry Text="{Binding ConfirmPassphrase}" Placeholder="Enter it again" IsPassword="True" ReturnType="Done" />
+                    </Border>
+                    <Label Text="A short sentence that only you know is easier to remember and harder to guess."
+                           Style="{StaticResource Muted}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource WarningCard}">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                    <Label Text="!" TextColor="{StaticResource Warning}" FontFamily="OpenSansSemibold" FontSize="22" />
+                    <VerticalStackLayout Grid.Column="1" Spacing="4">
+                        <Label Text="Your passphrase cannot be recovered" FontFamily="OpenSansSemibold" />
+                        <Label Text="If you lose this passphrase, PassCrate cannot recover your secrets."
+                               Style="{StaticResource Muted}" />
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
+
+            <Border Padding="8,5" Stroke="Transparent" StrokeThickness="2" StrokeShape="RoundRectangle 12">
+                <Border.Triggers>
+                    <DataTrigger TargetType="Border" Binding="{Binding IsRecoveryWarningInvalid}" Value="True">
+                        <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource LightDangerSurface}, Dark={StaticResource DarkDangerSurface}}" />
+                    </DataTrigger>
+                </Border.Triggers>
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                    <CheckBox IsChecked="{Binding AcceptsRecoveryWarning}" VerticalOptions="Start" />
+                    <Label Grid.Column="1"
+                           Text="I understand that my vault passphrase cannot be recovered."
+                           Style="{StaticResource Muted}"
+                           VerticalTextAlignment="Center" />
+                </Grid>
+            </Border>
+            <Label Text="{Binding ErrorMessage}"
+                   Style="{StaticResource ErrorText}"
+                   IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+            <Button Text="Create my vault" Command="{Binding CreateVaultCommand}" IsEnabled="{Binding IsNotBusy}" />
+            <Button Text="Cancel" Style="{StaticResource TertiaryButton}" Command="{Binding CancelCommand}" />
+        </VerticalStackLayout>
+    </ScrollView>
 </ContentPage>

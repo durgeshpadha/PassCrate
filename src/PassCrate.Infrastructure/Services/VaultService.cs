@@ -24,7 +24,10 @@ public sealed class VaultService(
         string color,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new UserInputValidationException("Enter a group name.");
+        }
         var now = DateTimeOffset.UtcNow;
         var group = new VaultGroup
         {
@@ -47,7 +50,10 @@ public sealed class VaultService(
         string color,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new UserInputValidationException("Enter a group name.");
+        }
         var group = await repository.GetGroupAsync(groupId, cancellationToken).ConfigureAwait(false)
             ?? throw new KeyNotFoundException("Group not found.");
         await repository.SaveGroupAsync(group with
@@ -76,7 +82,7 @@ public sealed class VaultService(
             if (groupId == moveSecretsToGroupId ||
                 await repository.GetGroupAsync(moveSecretsToGroupId!, cancellationToken).ConfigureAwait(false) is null)
             {
-                throw new ArgumentException("A valid destination group is required.", nameof(moveSecretsToGroupId));
+                throw new UserInputValidationException("Choose a different group for the secrets being moved.");
             }
 
             foreach (var secret in secrets)
@@ -196,7 +202,7 @@ public sealed class VaultService(
         {
             if (plaintext.Length > CloudResourceLimits.MaximumSecretPlaintextBytes)
             {
-                throw new ArgumentException("The secret is larger than PassCrate's 1 MiB safety limit.", nameof(document));
+                throw new UserInputValidationException("This secret is too large. Reduce its contents to less than 1 MiB.");
             }
 
             var associatedData = CreateAssociatedData(secret.Id, secret.GroupId, secret.EncryptionVersion);
@@ -214,17 +220,20 @@ public sealed class VaultService(
     private static void ValidateDocument(SecretDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
-        ArgumentException.ThrowIfNullOrWhiteSpace(document.Name);
+        if (string.IsNullOrWhiteSpace(document.Name))
+        {
+            throw new UserInputValidationException("Enter a name for this secret.");
+        }
+
         if (document.Fields.Any(field => string.IsNullOrWhiteSpace(field.Key)))
         {
-            throw new ArgumentException("Every secret field requires a name.", nameof(document));
+            throw new UserInputValidationException("Enter a label for every custom field, or remove empty fields.");
         }
 
         if (document.Fields.Count > CloudResourceLimits.MaximumFieldsPerSecret)
         {
-            throw new ArgumentException(
-                $"A secret cannot contain more than {CloudResourceLimits.MaximumFieldsPerSecret} fields.",
-                nameof(document));
+            throw new UserInputValidationException(
+                $"A secret cannot contain more than {CloudResourceLimits.MaximumFieldsPerSecret} fields.");
         }
     }
 

@@ -1,9 +1,106 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<ContentPage x:Class="PassCrate.App.Views.CloudRestorePage" xmlns="http://schemas.microsoft.com/dotnet/2021/maui" xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" Title="Restore from Cloud">
-    <ScrollView><VerticalStackLayout Padding="24,20,24,40" Spacing="14" MaximumWidthRequest="680" HorizontalOptions="Center">
-        <Label Text="NEW DEVICE" Style="{StaticResource Eyebrow}" /><Label Text="Restore from Cloud" Style="{StaticResource PageTitle}" /><Label Text="Your provider stores only encrypted snapshots. Your vault passphrase unlocks them." Style="{StaticResource Muted}" />
-        <Label Text="1 · Find your vault" Style="{StaticResource SectionTitle}" Margin="0,8,0,0" /><Border Style="{StaticResource FieldBorder}"><Picker ItemsSource="{Binding ProviderOptions}" SelectedItem="{Binding SelectedProvider}" /></Border><Button Text="Authorize and find vaults" Command="{Binding FindVaultsCommand}" Style="{StaticResource SecondaryButton}" /><Label Text="{Binding DiscoveryStatus}" Style="{StaticResource Muted}" /><Border Style="{StaticResource FieldBorder}"><Picker ItemsSource="{Binding AvailableVaults}" SelectedItem="{Binding SelectedVault}" ItemDisplayBinding="{Binding DisplayName}" Title="Select vault" /></Border>
-        <Label Text="2 · Unlock your vault" Style="{StaticResource SectionTitle}" Margin="0,8,0,0" /><Label Text="Enter the same vault passphrase you use on your other device." Style="{StaticResource Muted}" /><Border Style="{StaticResource FieldBorder}"><Entry Text="{Binding VaultPassphrase}" Placeholder="Vault passphrase" IsPassword="True" /></Border>
-        <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" /><Label Text="{Binding ErrorMessage}" TextColor="{StaticResource Danger}" IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" /><Button Text="Restore encrypted vault" Command="{Binding RestoreCommand}" IsEnabled="{Binding IsNotBusy}" /><Button Text="Cancel" Command="{Binding CancelCommand}" Style="{StaticResource SecondaryButton}" />
-    </VerticalStackLayout></ScrollView>
+<ContentPage x:Class="PassCrate.App.Views.CloudRestorePage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             Title="Restore from cloud">
+    <ScrollView>
+        <VerticalStackLayout Style="{StaticResource PageContent}" MaximumWidthRequest="640">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                <Border Style="{StaticResource IconTile}" WidthRequest="56" HeightRequest="56" StrokeShape="RoundRectangle 18">
+                    <Label Text="☁" Style="{StaticResource AccentIcon}" FontSize="24" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                </Border>
+                <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
+                    <Label Text="NEW DEVICE" Style="{StaticResource AccentEyebrow}" />
+                    <Label Text="Restore your vault" Style="{StaticResource PageTitle}" FontSize="27" />
+                </VerticalStackLayout>
+            </Grid>
+            <Label Text="Your cloud service stores only an encrypted backup. Use the same passphrase you used on your other device."
+                   Style="{StaticResource PageLead}" />
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="12">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                        <Border Style="{StaticResource IconTile}" WidthRequest="34" HeightRequest="34" StrokeShape="RoundRectangle 11">
+                            <Label Text="1" Style="{StaticResource AccentIcon}" FontSize="14" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                        </Border>
+                        <VerticalStackLayout Grid.Column="1" Spacing="2">
+                            <Label Text="Find your cloud backup" FontFamily="OpenSansSemibold" FontSize="17" />
+                            <Label Text="Connect the Google Drive or Dropbox account used on your other device." Style="{StaticResource Muted}" />
+                        </VerticalStackLayout>
+                    </Grid>
+                    <Border Style="{StaticResource FieldBorder}">
+                        <Picker ItemsSource="{Binding ProviderOptions}" SelectedItem="{Binding SelectedProvider}" />
+                    </Border>
+                    <Label Text="After choosing a cloud service, tap the button below to search that account."
+                           Style="{StaticResource Muted}" />
+                    <Button Text="Connect and find backups  →"
+                            Command="{Binding FindVaultsCommand}"
+                            IsEnabled="{Binding IsNotBusy}" />
+                    <Label Text="{Binding DiscoveryStatus}"
+                           Style="{StaticResource Muted}"
+                           IsVisible="{Binding HasNotSearched}" />
+                    <Border Style="{StaticResource DangerCard}" IsVisible="{Binding HasNoBackups}">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                            <Label Text="!" TextColor="{StaticResource Danger}" FontFamily="OpenSansSemibold" FontSize="20" />
+                            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                <Label Text="No backups found" TextColor="{StaticResource Danger}" FontFamily="OpenSansSemibold" />
+                                <Label Text="{Binding DiscoveryStatus}" Style="{StaticResource Muted}" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Border>
+                    <Border Style="{StaticResource SuccessCard}" IsVisible="{Binding HasAvailableVaults}">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                            <Label Text="✓" TextColor="{StaticResource Success}" FontFamily="OpenSansSemibold" />
+                            <Label Grid.Column="1" Text="Backups found. Choose one below to continue." TextColor="{StaticResource Success}" />
+                        </Grid>
+                    </Border>
+                    <Border Style="{StaticResource FieldBorder}" IsVisible="{Binding HasAvailableVaults}">
+                        <Border.Triggers>
+                            <DataTrigger TargetType="Border" Binding="{Binding IsVaultSelectionInvalid}" Value="True">
+                                <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                <Setter Property="StrokeThickness" Value="2" />
+                            </DataTrigger>
+                        </Border.Triggers>
+                        <Picker ItemsSource="{Binding AvailableVaults}"
+                                SelectedItem="{Binding SelectedVault}"
+                                ItemDisplayBinding="{Binding DisplayName}"
+                                Title="Select backup" />
+                    </Border>
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource Card}" IsVisible="{Binding HasAvailableVaults}">
+                <VerticalStackLayout Spacing="12">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                        <Border Style="{StaticResource IconTile}" WidthRequest="34" HeightRequest="34" StrokeShape="RoundRectangle 11">
+                            <Label Text="2" Style="{StaticResource AccentIcon}" FontSize="14" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                        </Border>
+                        <VerticalStackLayout Grid.Column="1" Spacing="2">
+                            <Label Text="Enter your backup passphrase" FontFamily="OpenSansSemibold" FontSize="17" />
+                            <Label Text="This must match the passphrase used when the backup was created." Style="{StaticResource Muted}" />
+                        </VerticalStackLayout>
+                    </Grid>
+                    <Border Style="{StaticResource FieldBorder}">
+                        <Border.Triggers>
+                            <DataTrigger TargetType="Border" Binding="{Binding IsVaultPassphraseInvalid}" Value="True">
+                                <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                <Setter Property="StrokeThickness" Value="2" />
+                            </DataTrigger>
+                        </Border.Triggers>
+                        <Entry Text="{Binding VaultPassphrase}" Placeholder="Vault passphrase" IsPassword="True" />
+                    </Border>
+                </VerticalStackLayout>
+            </Border>
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+            <Label Text="{Binding ErrorMessage}"
+                   Style="{StaticResource ErrorText}"
+                   IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+            <Button Text="Restore my vault"
+                    Command="{Binding RestoreCommand}"
+                    IsEnabled="{Binding IsNotBusy}"
+                    IsVisible="{Binding HasAvailableVaults}" />
+            <Button Text="Cancel" Command="{Binding CancelCommand}" Style="{StaticResource TertiaryButton}" />
+        </VerticalStackLayout>
+    </ScrollView>
 </ContentPage>

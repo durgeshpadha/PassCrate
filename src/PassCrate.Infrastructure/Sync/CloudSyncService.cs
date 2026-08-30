@@ -32,7 +32,7 @@ public sealed class CloudSyncService(
         CancellationToken cancellationToken = default)
     {
         EnsureNetworkAvailable();
-        SetStatus(CloudSyncState.Connecting, provider, "Connecting to cloud provider…");
+        SetStatus(CloudSyncState.Connecting, provider, "Connecting to your cloud account…");
         await authorization.AuthorizeAsync(provider, cancellationToken).ConfigureAwait(false);
         var remote = await DownloadSnapshotHeadersAsync(
             providerFactory.Get(provider),
@@ -50,7 +50,7 @@ public sealed class CloudSyncService(
         SetStatus(
             CloudSyncState.Ready,
             provider,
-            descriptors.Length == 0 ? "No cloud vaults found." : "Cloud vaults found.");
+            descriptors.Length == 0 ? "No PassCrate backups found." : "PassCrate backups found.");
         return descriptors;
     }
 
@@ -65,7 +65,7 @@ public sealed class CloudSyncService(
         await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            SetStatus(CloudSyncState.Connecting, provider, "Connecting to cloud provider…");
+            SetStatus(CloudSyncState.Connecting, provider, "Connecting to your cloud account…");
             var current = await syncRepository.GetConfigurationAsync(cancellationToken).ConfigureAwait(false);
             if (current is { IsEnabled: true } && current.Provider != provider)
             {
@@ -151,7 +151,7 @@ public sealed class CloudSyncService(
                     SetStatus(
                         CloudSyncState.Ready,
                         configuration.Provider,
-                        "Encrypted cloud sync enabled with the new vault passphrase.",
+                        "Cloud sync is ready with your new passphrase.",
                         upload.CompletedAt,
                         CountConflicts(state));
                 }
@@ -190,7 +190,7 @@ public sealed class CloudSyncService(
             SetStatus(
                 CloudSyncState.Syncing,
                 configuration.Provider,
-                "Synchronizing encrypted vault…",
+                "Syncing your vault…",
                 configuration.LastSuccessfulSyncAt);
             var storage = providerFactory.Get(configuration.Provider);
             var dataEncryptionKey = session.UseKey(key => key.ToArray());
@@ -398,7 +398,7 @@ public sealed class CloudSyncService(
         var localMutationStarted = false;
         try
         {
-            SetStatus(CloudSyncState.Connecting, request.Provider, "Downloading encrypted vault…");
+            SetStatus(CloudSyncState.Connecting, request.Provider, "Downloading your cloud backup…");
             await authorization.AuthorizeAsync(request.Provider, cancellationToken).ConfigureAwait(false);
             var storage = providerFactory.Get(request.Provider);
             var candidates = (await DownloadSnapshotHeadersAsync(storage, cancellationToken).ConfigureAwait(false))
@@ -492,7 +492,7 @@ public sealed class CloudSyncService(
             SetStatus(
                 CloudSyncState.Ready,
                 request.Provider,
-                "Cloud vault restored.",
+                "Your vault was restored from the cloud backup.",
                 now,
                 CountConflicts(merged));
         }
@@ -539,7 +539,7 @@ public sealed class CloudSyncService(
                 }
             }
 
-            SetStatus(CloudSyncState.Disabled, null, "Cloud sync is off. Encrypted cloud files were kept.");
+            SetStatus(CloudSyncState.Disabled, null, "Cloud sync is off. Your cloud backups were kept.");
         }
         finally
         {
@@ -556,7 +556,7 @@ public sealed class CloudSyncService(
         await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            SetStatus(CloudSyncState.Connecting, configuration.Provider, "Reconnecting to cloud provider…");
+            SetStatus(CloudSyncState.Connecting, configuration.Provider, "Reconnecting your cloud account…");
             await authorization.AuthorizeAsync(configuration.Provider, cancellationToken).ConfigureAwait(false);
             var key = session.UseKey(value => value.ToArray());
             try
@@ -596,7 +596,7 @@ public sealed class CloudSyncService(
     {
         if (!string.Equals(typedConfirmation.Trim(), "DELETE CLOUD VAULT", StringComparison.Ordinal))
         {
-            throw new InvalidOperationException("Type DELETE CLOUD VAULT exactly to confirm.");
+            throw new UserInputValidationException("Type DELETE CLOUD VAULT exactly to confirm deletion.");
         }
 
         await keyManagement.VerifyPassphraseAsync(vaultPassphrase, cancellationToken).ConfigureAwait(false);
@@ -636,7 +636,7 @@ public sealed class CloudSyncService(
 
             await authorization.DisconnectAsync(configuration.Provider, cancellationToken).ConfigureAwait(false);
             await syncRepository.DisableAsync(cancellationToken).ConfigureAwait(false);
-            SetStatus(CloudSyncState.Disabled, null, "Encrypted cloud vault removed from the provider app folder. Local data was kept.");
+            SetStatus(CloudSyncState.Disabled, null, "The cloud backup was deleted. Your vault on this device was kept.");
         }
         finally
         {
@@ -651,7 +651,7 @@ public sealed class CloudSyncService(
     {
         if (!string.Equals(typedConfirmation.Trim(), "DELETE ALL CLOUD VAULTS", StringComparison.Ordinal))
         {
-            throw new InvalidOperationException("Type DELETE ALL CLOUD VAULTS exactly to confirm.");
+            throw new UserInputValidationException("Type DELETE ALL CLOUD VAULTS exactly to confirm deletion.");
         }
 
         await keyManagement.VerifyPassphraseAsync(vaultPassphrase, cancellationToken).ConfigureAwait(false);
@@ -672,7 +672,7 @@ public sealed class CloudSyncService(
 
             await authorization.DisconnectAsync(configuration.Provider, cancellationToken).ConfigureAwait(false);
             await syncRepository.DisableAsync(cancellationToken).ConfigureAwait(false);
-            SetStatus(CloudSyncState.Disabled, null, "All PassCrate app-folder data was removed. Local data was kept.");
+            SetStatus(CloudSyncState.Disabled, null, "All PassCrate cloud backups were deleted. Your vault on this device was kept.");
         }
         finally
         {
@@ -998,17 +998,17 @@ public sealed class CloudSyncService(
         var (state, message) = exception switch
         {
             CloudAuthorizationRequiredException =>
-                (CloudSyncState.ReconnectRequired, "Cloud authorization expired. Reconnect to continue."),
+                (CloudSyncState.ReconnectRequired, "Your cloud connection expired. Reconnect to continue."),
             CloudQuotaException =>
-                (CloudSyncState.QuotaLimited, "Cloud quota or rate limit reached. Local changes are safe."),
+                (CloudSyncState.QuotaLimited, "Cloud storage is full or temporarily busy. Your changes on this device are safe."),
             CloudResourceLimitException =>
-                (CloudSyncState.CloudCleanupRequired, "Cloud cleanup is required before PassCrate can sync."),
+                (CloudSyncState.CloudCleanupRequired, "Remove old PassCrate backups before syncing again."),
             HttpRequestException when !networkPolicy.IsInternetAvailable =>
                 (CloudSyncState.Offline, "Offline. Local changes are safe and will sync later."),
             HttpRequestException =>
-                (CloudSyncState.Error, "The cloud provider request failed. Local changes are safe."),
+                (CloudSyncState.Error, "PassCrate could not reach the cloud service. Your changes on this device are safe."),
             TimeoutException =>
-                (CloudSyncState.Error, "The cloud provider timed out. Local changes are safe."),
+                (CloudSyncState.Error, "The cloud service took too long to respond. Your changes on this device are safe."),
             _ => (CloudSyncState.Error, "PassCrate could not complete cloud sync. Local changes are safe."),
         };
         SetStatus(state, provider, message, lastSuccessfulSyncAt);

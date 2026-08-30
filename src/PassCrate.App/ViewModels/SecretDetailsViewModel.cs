@@ -38,6 +38,18 @@ public sealed partial class SecretDetailsViewModel(
     }
 
     [RelayCommand]
+    private async Task CopyNotesAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Notes))
+        {
+            return;
+        }
+
+        var seconds = Math.Clamp((await repository.GetSettingsAsync()).ClipboardClearSeconds, 5, 300);
+        await sensitiveClipboard.CopyAsync(Notes, TimeSpan.FromSeconds(seconds));
+    }
+
+    [RelayCommand]
     private Task EditAsync() =>
         Shell.Current.GoToAsync($"{nameof(Views.SecretEditorPage)}?id={Uri.EscapeDataString(SecretId)}");
 

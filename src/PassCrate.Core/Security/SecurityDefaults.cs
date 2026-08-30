@@ -51,7 +51,11 @@ public static class CredentialPolicy
     private static readonly Lazy<HashSet<string>> CommonVaultPassphrases = new(LoadCommonVaultPassphrases);
     public static void ValidateVaultPassphrase(string passphrase)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(passphrase);
+        if (string.IsNullOrWhiteSpace(passphrase))
+        {
+            throw new CredentialValidationException("Enter your vault passphrase.");
+        }
+
         if (passphrase.Trim().Length < SecurityDefaults.MinimumVaultPassphraseLength)
         {
             throw new CredentialValidationException(

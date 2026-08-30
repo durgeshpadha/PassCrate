@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PassCrate.Core.Interfaces;
 using PassCrate.Core.Models;
+using PassCrate.Core.Security;
 
 namespace PassCrate.App.ViewModels;
 
@@ -16,6 +17,11 @@ public sealed partial class SecretEditorViewModel(IVaultService vaultService) : 
     [ObservableProperty] private string notes = string.Empty;
     [ObservableProperty] private VaultGroup? selectedGroup;
     [ObservableProperty] private string pageTitle = "New secret";
+    [ObservableProperty] private bool isNameInvalid;
+    [ObservableProperty] private bool isGroupInvalid;
+    [ObservableProperty] private bool isGroupSelectorOpen;
+
+    public string SelectedGroupName => SelectedGroup?.Name ?? "Choose a group";
 
     public async Task LoadAsync(string? id, string? groupId) => await RunBusyAsync(async () =>
     {
@@ -56,6 +62,16 @@ public sealed partial class SecretEditorViewModel(IVaultService vaultService) : 
     private void AddField() => Fields.Add(new FieldEditorViewModel());
 
     [RelayCommand]
+    private void ToggleGroupSelector() => IsGroupSelectorOpen = !IsGroupSelectorOpen;
+
+    [RelayCommand]
+    private void SelectGroup(VaultGroup group)
+    {
+        SelectedGroup = group;
+        IsGroupSelectorOpen = false;
+    }
+
+    [RelayCommand]
     private void RemoveField(FieldEditorViewModel field)
     {
         field.Value = string.Empty;
@@ -65,9 +81,28 @@ public sealed partial class SecretEditorViewModel(IVaultService vaultService) : 
     [RelayCommand]
     private async Task SaveAsync() => await RunBusyAsync(async () =>
     {
+        ClearValidationState();
+        if (string.IsNullOrWhiteSpace(Name))
+        {
+            IsNameInvalid = true;
+            throw new UserInputValidationException("Enter a name for this secret.");
+        }
+
         if (SelectedGroup is null)
         {
-            throw new InvalidOperationException("Choose a group.");
+            IsGroupInvalid = true;
+            throw new UserInputValidationException("Choose a group for this secret.");
+        }
+
+        var invalidFields = Fields.Where(field => string.IsNullOrWhiteSpace(field.Key)).ToArray();
+        if (invalidFields.Length > 0)
+        {
+            foreach (var field in invalidFields)
+            {
+                field.IsKeyInvalid = true;
+            }
+
+            throw new UserInputValidationException("Enter a label for every custom field, or remove empty fields.");
         }
 
         var document = new SecretDocument
@@ -103,6 +138,31 @@ public sealed partial class SecretEditorViewModel(IVaultService vaultService) : 
         }
         Fields.Clear();
         Notes = string.Empty;
+        IsGroupSelectorOpen = false;
+        ClearValidationState();
+    }
+
+    partial void OnNameChanged(string value)
+    {
+        IsNameInvalid = false;
+        ErrorMessage = string.Empty;
+    }
+
+    partial void OnSelectedGroupChanged(VaultGroup? value)
+    {
+        IsGroupInvalid = false;
+        ErrorMessage = string.Empty;
+        OnPropertyChanged(nameof(SelectedGroupName));
+    }
+
+    private void ClearValidationState()
+    {
+        IsNameInvalid = false;
+        IsGroupInvalid = false;
+        foreach (var field in Fields)
+        {
+            field.IsKeyInvalid = false;
+        }
     }
 }
 
@@ -111,4 +171,7 @@ public sealed partial class FieldEditorViewModel : ObservableObject
     [ObservableProperty] private string key = string.Empty;
     [ObservableProperty] private string value = string.Empty;
     [ObservableProperty] private bool isSensitive;
+    [ObservableProperty] private bool isKeyInvalid;
+
+    partial void OnKeyChanged(string value) => IsKeyInvalid = false;
 }

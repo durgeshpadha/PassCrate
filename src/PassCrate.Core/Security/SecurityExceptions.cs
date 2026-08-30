@@ -2,6 +2,8 @@ namespace PassCrate.Core.Security;
 
 public sealed class CredentialValidationException(string message) : Exception(message);
 
+public sealed class UserInputValidationException(string message) : Exception(message);
+
 public sealed class AuthenticationFailedException() : Exception("Unable to authenticate.");
 
 public sealed class VaultUnlockException() : Exception("Unable to unlock your vault.");

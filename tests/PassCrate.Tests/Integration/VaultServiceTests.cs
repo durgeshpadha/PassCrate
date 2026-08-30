@@ -68,6 +68,30 @@ public sealed class VaultServiceTests
         Assert.Equal("GitHub Account", (await context.Vault.ReadSecretAsync(id)).Name);
     }
 
+    [Fact]
+    public async Task EditableContent_ReportsSafeSpecificValidationMessages()
+    {
+        await using var context = await TestContext.CreateAsync();
+        await context.Keys.InitializeVaultAsync("correct horse battery staple 2026");
+
+        var missingGroupName = await Assert.ThrowsAsync<UserInputValidationException>(
+            () => context.Vault.CreateGroupAsync("  ", "◇", "#64748B"));
+        Assert.Equal("Enter a group name.", missingGroupName.Message);
+
+        var group = await context.Vault.CreateGroupAsync("Passwords", "✦", "#4F46E5");
+        var missingSecretName = await Assert.ThrowsAsync<UserInputValidationException>(
+            () => context.Vault.AddSecretAsync(group.Id, CreateDocument("secret") with { Name = "" }));
+        Assert.Equal("Enter a name for this secret.", missingSecretName.Message);
+
+        var missingFieldLabel = await Assert.ThrowsAsync<UserInputValidationException>(
+            () => context.Vault.AddSecretAsync(group.Id, new SecretDocument
+            {
+                Name = "Account",
+                Fields = [new SecretField { Key = "", Value = "secret" }],
+            }));
+        Assert.Contains("label for every custom field", missingFieldLabel.Message);
+    }
+
     private static SecretDocument CreateDocument(string password) => new()
     {
         Name = "GitHub Account",

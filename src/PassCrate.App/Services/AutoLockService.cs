@@ -72,10 +72,18 @@ public sealed class AutoLockService(
             }
 
             cloudSync.NotifyVaultLocked();
+            var shell = Shell.Current;
+            if (shell?.CurrentPage?.BindingContext is ViewModels.ISensitiveStateViewModel sensitive)
+            {
+                sensitive.ClearSensitiveState();
+            }
             keyManagement.LockVault();
             await clipboard.ClearAsync();
             NotifyActivity();
-            await Shell.Current.GoToAsync("//unlock");
+            if (shell is not null)
+            {
+                await shell.GoToAsync("//unlock");
+            }
         }
         catch (Exception)
         {

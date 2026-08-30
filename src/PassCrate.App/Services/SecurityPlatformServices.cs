@@ -104,22 +104,23 @@ public sealed class UserErrorMessageMapper : IUserErrorMessageMapper
 {
     public string ToUserMessage(Exception exception) => exception switch
     {
-        AuthenticationFailedException => "Unable to authenticate.",
+        AuthenticationFailedException => "Authentication was not completed. Try again.",
+        UserInputValidationException validation => validation.Message,
         CredentialValidationException validation => validation.Message,
-        VaultUnlockException => "Unable to unlock your vault.",
+        VaultUnlockException => "That passphrase did not unlock your vault. Check it and try again.",
         VaultUnlockThrottledException throttled => throttled.Message,
-        DeviceKeyUnavailableException => "This device can no longer open the local vault. Restore from cloud.",
-        CloudAuthorizationRequiredException => "Reconnect your cloud provider to continue.",
-        CloudQuotaException => "Your cloud provider is temporarily rate-limited or out of space.",
-        CloudResourceLimitException => "Cloud cleanup is required before PassCrate can sync.",
-        CloudRestoreFailedException => "The vault passphrase did not unlock a valid cloud vault.",
-        CloudSnapshotUnavailableException => "No valid PassCrate cloud snapshot was found.",
-        CloudVaultMismatchException => "This provider account contains a different PassCrate vault.",
+        DeviceKeyUnavailableException => "This device can no longer open the saved vault. Restore a cloud backup or reset PassCrate.",
+        CloudAuthorizationRequiredException => "Reconnect your Google Drive or Dropbox account to continue.",
+        CloudQuotaException => "Your cloud storage is temporarily unavailable or full. Try again later or free some space.",
+        CloudResourceLimitException => "PassCrate found too much cloud data to process safely. Remove old backups and try again.",
+        CloudRestoreFailedException => "That passphrase could not open this cloud backup. Check it and try again.",
+        CloudSnapshotUnavailableException => "No usable PassCrate backup was found in this cloud account.",
+        CloudVaultMismatchException => "This cloud account already contains a backup for a different PassCrate vault.",
         GroupNotEmptyException => "Move the secrets in this group before deleting it.",
-        TimeoutException => "The operation timed out. Your local changes are safe.",
-        HttpRequestException => "The cloud provider request failed. Your local changes are safe.",
-        IOException => "PassCrate could not complete the local storage operation.",
-        _ => "PassCrate could not complete that operation.",
+        TimeoutException => "This is taking longer than expected. Try again; your changes on this device are safe.",
+        HttpRequestException => "PassCrate could not reach the cloud service. Your changes on this device are safe.",
+        IOException => "PassCrate could not read or save data on this device. Try again.",
+        _ => "PassCrate could not complete this action. Try again.",
     };
 }
 

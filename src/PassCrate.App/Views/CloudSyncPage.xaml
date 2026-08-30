@@ -4,53 +4,114 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              Title="Cloud Sync">
     <ScrollView>
-        <VerticalStackLayout Padding="24,20,24,40" Spacing="15" MaximumWidthRequest="680" HorizontalOptions="Center">
-            <Label Text="END-TO-END ENCRYPTED" Style="{StaticResource Eyebrow}" />
-            <Label Text="Cloud Sync" Style="{StaticResource PageTitle}" />
-            <Label Text="Sync encrypted groups and secrets across your devices. Google Drive and Dropbox receive only opaque encrypted snapshots." Style="{StaticResource Muted}" />
+        <VerticalStackLayout Style="{StaticResource PageContent}" MaximumWidthRequest="680">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                <Border Style="{StaticResource IconTile}" WidthRequest="56" HeightRequest="56" StrokeShape="RoundRectangle 18">
+                    <Label Text="☁" Style="{StaticResource AccentIcon}" FontSize="24" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                </Border>
+                <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
+                    <Label Text="PRIVATE CLOUD BACKUP" Style="{StaticResource AccentEyebrow}" />
+                    <Label Text="Cloud sync" Style="{StaticResource PageTitle}" FontSize="27" />
+                </VerticalStackLayout>
+            </Grid>
+            <Label Text="Keep a protected copy of your vault in Google Drive or Dropbox. Everything is encrypted before it leaves this device."
+                   Style="{StaticResource PageLead}" />
 
             <Border Style="{StaticResource Card}">
-                <VerticalStackLayout Spacing="8">
-                    <Grid ColumnDefinitions="*,Auto"><Label Text="Status" FontFamily="OpenSansSemibold" /><Label Grid.Column="1" Text="{Binding SelectedProvider}" Style="{StaticResource Muted}" /></Grid>
-                    <Label Text="{Binding StatusText}" Style="{StaticResource Muted}" />
+                <VerticalStackLayout Spacing="10">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                        <Label Text="●" TextColor="{StaticResource Success}" VerticalTextAlignment="Center" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="2">
+                            <Label Text="Sync status" FontFamily="OpenSansSemibold" />
+                            <Label Text="{Binding StatusText}" Style="{StaticResource Muted}" />
+                        </VerticalStackLayout>
+                        <Label Grid.Column="2" Text="{Binding SelectedProvider}" Style="{StaticResource Muted}" VerticalTextAlignment="Center" />
+                    </Grid>
                     <Label Text="{Binding ConflictText}" TextColor="{StaticResource Warning}" IsVisible="{Binding ConflictText, Converter={StaticResource StringNotEmptyConverter}}" />
-                    <Button Text="Review conflicts" Command="{Binding ReviewConflictsCommand}" Style="{StaticResource SecondaryButton}" IsVisible="{Binding ConflictText, Converter={StaticResource StringNotEmptyConverter}}" />
+                    <Button Text="Review conflicts" Command="{Binding ReviewConflictsCommand}" Style="{StaticResource CompactButton}" IsVisible="{Binding ConflictText, Converter={StaticResource StringNotEmptyConverter}}" />
                     <Button Text="Reconnect" Command="{Binding ReconnectCommand}" IsVisible="{Binding CanReconnect}" />
-                    <Label Text="Last successful sync" Style="{StaticResource Eyebrow}" Margin="0,5,0,0" />
-                    <Label Text="{Binding LastSyncText}" />
+                    <BoxView Style="{StaticResource Divider}" />
+                    <Grid ColumnDefinitions="*,Auto"><Label Text="Last successful sync" Style="{StaticResource Eyebrow}" /><Label Grid.Column="1" Text="{Binding LastSyncText}" Style="{StaticResource Muted}" /></Grid>
                 </VerticalStackLayout>
             </Border>
 
             <VerticalStackLayout IsVisible="{Binding IsDisabled}" Spacing="12">
-                <Label Text="Provider" Style="{StaticResource SectionTitle}" />
-                <Border Style="{StaticResource FieldBorder}"><Picker ItemsSource="{Binding ProviderOptions}" SelectedItem="{Binding SelectedProvider}" /></Border>
-                <Label Text="Vault passphrase" Style="{StaticResource SectionTitle}" Margin="0,8,0,0" />
-                <Label Text="Re-enter your vault passphrase to create the encrypted cloud recovery envelope. PassCrate never stores it." Style="{StaticResource Muted}" />
-                <Border Style="{StaticResource FieldBorder}"><Entry Text="{Binding VaultPassphrase}" Placeholder="Vault passphrase" IsPassword="True" /></Border>
-                <Border Stroke="#F2C46D" BackgroundColor="{AppThemeBinding Light=#FFF8E8, Dark=#2B2112}" StrokeShape="RoundRectangle 16" Padding="16">
-                    <VerticalStackLayout Spacing="5"><Label Text="No recovery mechanism" FontFamily="OpenSansSemibold" /><Label Text="PassCrate never stores this passphrase. If you lose it, a new device cannot restore your cloud vault." Style="{StaticResource Muted}" /></VerticalStackLayout>
+                <Label Text="ENABLE SYNC" Style="{StaticResource Eyebrow}" Margin="0,6,0,0" />
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="CLOUD SERVICE" Style="{StaticResource FieldLabel}" />
+                        <Border Style="{StaticResource FieldBorder}"><Picker ItemsSource="{Binding ProviderOptions}" SelectedItem="{Binding SelectedProvider}" /></Border>
+                        <Label Text="VAULT PASSPHRASE" Style="{StaticResource FieldLabel}" />
+                        <Label Text="Re-enter your passphrase to protect the cloud backup. PassCrate never saves it." Style="{StaticResource Muted}" />
+                        <Border Style="{StaticResource FieldBorder}">
+                            <Border.Triggers>
+                                <DataTrigger TargetType="Border" Binding="{Binding IsVaultPassphraseInvalid}" Value="True">
+                                    <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                    <Setter Property="StrokeThickness" Value="2" />
+                                </DataTrigger>
+                            </Border.Triggers>
+                            <Entry Text="{Binding VaultPassphrase}" Placeholder="Vault passphrase" IsPassword="True" />
+                        </Border>
+                    </VerticalStackLayout>
                 </Border>
-                <Button Text="Authorize and enable sync" Command="{Binding EnableCommand}" IsEnabled="{Binding IsNotBusy}" />
+                <Border Style="{StaticResource WarningCard}">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10"><Label Text="!" TextColor="{StaticResource Warning}" FontFamily="OpenSansSemibold" /><VerticalStackLayout Grid.Column="1" Spacing="3"><Label Text="Remember your passphrase" FontFamily="OpenSansSemibold" /><Label Text="Without it, the cloud backup cannot be restored on another device." Style="{StaticResource Muted}" /></VerticalStackLayout></Grid>
+                </Border>
+                <Button Text="Connect and turn on cloud sync" Command="{Binding EnableCommand}" IsEnabled="{Binding IsNotBusy}" />
             </VerticalStackLayout>
 
             <VerticalStackLayout IsVisible="{Binding IsEnabled}" Spacing="12">
                 <Button Text="Sync now" Command="{Binding SyncNowCommand}" IsEnabled="{Binding IsNotBusy}" />
-                <Border Style="{StaticResource Card}"><Grid ColumnDefinitions="*,Auto"><VerticalStackLayout><Label Text="Wi-Fi only" FontFamily="OpenSansSemibold" /><Label Text="Off by default" Style="{StaticResource Muted}" /></VerticalStackLayout><Switch Grid.Column="1" IsToggled="{Binding WifiOnly}" /></Grid></Border>
+                <Border Style="{StaticResource Card}"><Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12"><Border Style="{StaticResource IconTile}" WidthRequest="42" HeightRequest="42" StrokeShape="RoundRectangle 13"><Label Text="⌁" Style="{StaticResource AccentIcon}" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" /></Border><VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center"><Label Text="Wi-Fi only" FontFamily="OpenSansSemibold" /><Label Text="Avoid sync over cellular data" Style="{StaticResource Muted}" /></VerticalStackLayout><Switch Grid.Column="2" IsToggled="{Binding WifiOnly}" /></Grid></Border>
                 <Button Text="Disconnect (keep cloud files)" Command="{Binding DisconnectCommand}" Style="{StaticResource SecondaryButton}" />
 
-                <Label Text="DELETE CLOUD COPY" Style="{StaticResource Eyebrow}" TextColor="{StaticResource Danger}" Margin="0,12,0,0" />
-                <Label Text="Requires your vault passphrase and the exact confirmation text. This never deletes local data." Style="{StaticResource Muted}" />
-                <Border Style="{StaticResource FieldBorder}"><Entry Text="{Binding VaultPassphrase}" Placeholder="Vault passphrase" IsPassword="True" /></Border>
-                <Border Style="{StaticResource FieldBorder}"><Entry Text="{Binding DeleteConfirmation}" Placeholder="DELETE CLOUD VAULT" /></Border>
-                <Button Text="Delete cloud vault" Command="{Binding DeleteCloudVaultCommand}" Style="{StaticResource DangerButton}" />
-                <Label Text="DELETE ALL PASSCRATE CLOUD DATA" Style="{StaticResource Eyebrow}" TextColor="{StaticResource Danger}" Margin="0,12,0,0" />
-                <Label Text="This removes every PassCrate .pvs file in the connected provider app folder." Style="{StaticResource Muted}" />
-                <Border Style="{StaticResource FieldBorder}"><Entry Text="{Binding DeleteAllConfirmation}" Placeholder="DELETE ALL CLOUD VAULTS" /></Border>
-                <Button Text="Delete all PassCrate cloud data" Command="{Binding DeleteAllProviderDataCommand}" Style="{StaticResource DangerButton}" />
+                <Label Text="DANGER ZONE" Style="{StaticResource Eyebrow}" TextColor="{StaticResource Danger}" Margin="0,12,0,0" />
+                <Border Style="{StaticResource DangerCard}">
+                    <VerticalStackLayout Spacing="11">
+                        <Label Text="Delete this cloud backup" FontFamily="OpenSansSemibold" />
+                        <Label Text="Requires your passphrase and exact confirmation. Local data is never deleted." Style="{StaticResource Muted}" />
+                        <Border Style="{StaticResource FieldBorder}">
+                            <Border.Triggers>
+                                <DataTrigger TargetType="Border" Binding="{Binding IsVaultPassphraseInvalid}" Value="True">
+                                    <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                    <Setter Property="StrokeThickness" Value="2" />
+                                </DataTrigger>
+                            </Border.Triggers>
+                            <Entry Text="{Binding VaultPassphrase}" Placeholder="Vault passphrase" IsPassword="True" />
+                        </Border>
+                        <Border Style="{StaticResource FieldBorder}">
+                            <Border.Triggers>
+                                <DataTrigger TargetType="Border" Binding="{Binding IsDeleteConfirmationInvalid}" Value="True">
+                                    <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                    <Setter Property="StrokeThickness" Value="2" />
+                                </DataTrigger>
+                            </Border.Triggers>
+                            <Entry Text="{Binding DeleteConfirmation}" Placeholder="DELETE CLOUD VAULT" />
+                        </Border>
+                        <Button Text="Delete cloud vault" Command="{Binding DeleteCloudVaultCommand}" Style="{StaticResource DangerOutlineButton}" />
+                    </VerticalStackLayout>
+                </Border>
+                <Border Style="{StaticResource DangerCard}">
+                    <VerticalStackLayout Spacing="11">
+                        <Label Text="Delete all PassCrate cloud data" FontFamily="OpenSansSemibold" />
+                        <Label Text="Removes every PassCrate backup stored in the connected cloud account."
+                               Style="{StaticResource Muted}" />
+                        <Border Style="{StaticResource FieldBorder}">
+                            <Border.Triggers>
+                                <DataTrigger TargetType="Border" Binding="{Binding IsDeleteAllConfirmationInvalid}" Value="True">
+                                    <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                    <Setter Property="StrokeThickness" Value="2" />
+                                </DataTrigger>
+                            </Border.Triggers>
+                            <Entry Text="{Binding DeleteAllConfirmation}" Placeholder="DELETE ALL CLOUD VAULTS" />
+                        </Border>
+                        <Button Text="Delete all cloud data" Command="{Binding DeleteAllProviderDataCommand}" Style="{StaticResource DangerOutlineButton}" />
+                    </VerticalStackLayout>
+                </Border>
             </VerticalStackLayout>
 
             <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
-            <Label Text="{Binding ErrorMessage}" TextColor="{StaticResource Danger}" IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+            <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

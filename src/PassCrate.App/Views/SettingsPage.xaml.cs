@@ -10,12 +10,10 @@ public partial class SettingsPage : ContentPage
     {
         InitializeComponent();
         BindingContext = _viewModel = viewModel;
-    }
-
+}
     protected override async void OnAppearing()
     {
         base.OnAppearing();
         await _viewModel.LoadAsync();
     }
 }
-

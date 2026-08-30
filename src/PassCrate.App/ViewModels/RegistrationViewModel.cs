@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PassCrate.App.Services;
 using PassCrate.Core.Interfaces;
+using PassCrate.Core.Security;
 
 namespace PassCrate.App.ViewModels;
 
@@ -13,18 +14,47 @@ public sealed partial class RegistrationViewModel(
     [ObservableProperty] private string passphrase = string.Empty;
     [ObservableProperty] private string confirmPassphrase = string.Empty;
     [ObservableProperty] private bool acceptsRecoveryWarning;
+    [ObservableProperty] private bool isPassphraseInvalid;
+    [ObservableProperty] private bool isConfirmPassphraseInvalid;
+    [ObservableProperty] private bool isRecoveryWarningInvalid;
 
     [RelayCommand]
     private async Task CreateVaultAsync() => await RunBusyAsync(async () =>
     {
+        ClearValidationState();
+        if (string.IsNullOrWhiteSpace(Passphrase))
+        {
+            IsPassphraseInvalid = true;
+            throw new UserInputValidationException("Enter a vault passphrase.");
+        }
+
+        try
+        {
+            CredentialPolicy.ValidateVaultPassphrase(Passphrase);
+        }
+        catch (CredentialValidationException)
+        {
+            IsPassphraseInvalid = true;
+            throw;
+        }
+
+        if (string.IsNullOrWhiteSpace(ConfirmPassphrase))
+        {
+            IsConfirmPassphraseInvalid = true;
+            throw new UserInputValidationException("Enter the passphrase again to confirm it.");
+        }
+
         if (Passphrase != ConfirmPassphrase)
         {
-            throw new InvalidOperationException("Vault passphrases do not match.");
+            IsConfirmPassphraseInvalid = true;
+            throw new UserInputValidationException("The passphrases do not match. Re-enter the confirmation.");
         }
 
         if (!AcceptsRecoveryWarning)
         {
-            throw new InvalidOperationException("Confirm that you understand the recovery warning.");
+            IsRecoveryWarningInvalid = true;
+            throw new UserInputValidationException(
+                "Check the box to confirm that you understand the passphrase cannot be recovered.");
         }
 
         // Keychain entries can survive an iOS uninstall. A new local account must
@@ -57,5 +87,31 @@ public sealed partial class RegistrationViewModel(
         Passphrase = string.Empty;
         ConfirmPassphrase = string.Empty;
         AcceptsRecoveryWarning = false;
+        ClearValidationState();
+    }
+
+    partial void OnPassphraseChanged(string value)
+    {
+        IsPassphraseInvalid = false;
+        ErrorMessage = string.Empty;
+    }
+
+    partial void OnConfirmPassphraseChanged(string value)
+    {
+        IsConfirmPassphraseInvalid = false;
+        ErrorMessage = string.Empty;
+    }
+
+    partial void OnAcceptsRecoveryWarningChanged(bool value)
+    {
+        IsRecoveryWarningInvalid = false;
+        ErrorMessage = string.Empty;
+    }
+
+    private void ClearValidationState()
+    {
+        IsPassphraseInvalid = false;
+        IsConfirmPassphraseInvalid = false;
+        IsRecoveryWarningInvalid = false;
     }
 }

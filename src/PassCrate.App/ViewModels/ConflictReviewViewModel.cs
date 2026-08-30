@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PassCrate.Core.Interfaces;
 using PassCrate.Core.Models;
+using PassCrate.Core.Security;
 
 namespace PassCrate.App.ViewModels;
 
@@ -11,6 +12,20 @@ public sealed partial class ConflictReviewViewModel(
     ISyncRepository syncRepository,
     IVaultService vaultService) : BaseViewModel, ISensitiveStateViewModel
 {
+    private static readonly GroupColorOption[] ConflictColorPalette =
+    [
+        new("Indigo", "#4F46E5"),
+        new("Teal", "#0F766E"),
+        new("Green", "#10B981"),
+        new("Amber", "#B45309"),
+        new("Gold", "#F59E0B"),
+        new("Red", "#B91C1C"),
+        new("Purple", "#7E22CE"),
+        new("Blue", "#0369A1"),
+        new("Slate", "#475569"),
+        new("Gray", "#64748B"),
+    ];
+
     public ObservableCollection<SyncConflictSet> ConflictSets { get; } = [];
     public ObservableCollection<SyncConflictRevisionView> Revisions { get; } = [];
     public ObservableCollection<ConflictFieldEditViewModel> MergedFields { get; } = [];
@@ -20,8 +35,16 @@ public sealed partial class ConflictReviewViewModel(
     [ObservableProperty] private string mergedName = string.Empty;
     [ObservableProperty] private string mergedNotes = string.Empty;
     [ObservableProperty] private string mergedIcon = "◇";
-    [ObservableProperty] private string mergedColor = "#4F46E5";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MergedColor))]
+    private GroupColorOption mergedColorOption = ConflictColorPalette[0];
     [ObservableProperty] private bool showSensitiveValues;
+    [ObservableProperty] private bool isMergedNameInvalid;
+    [ObservableProperty] private bool isMergedIconInvalid;
+    [ObservableProperty] private bool isMergedColorInvalid;
+
+    public IReadOnlyList<GroupColorOption> ColorOptions { get; } = ConflictColorPalette;
+    public string MergedColor => MergedColorOption.Hex;
 
     public async Task LoadAsync() => await RunBusyAsync(async () =>
     {
@@ -72,7 +95,8 @@ public sealed partial class ConflictReviewViewModel(
         {
             MergedName = group.Name;
             MergedIcon = group.Icon;
-            MergedColor = group.Color;
+            MergedColorOption = ColorOptions.FirstOrDefault(
+                color => string.Equals(color.Hex, group.Color, StringComparison.OrdinalIgnoreCase)) ?? ColorOptions[0];
         }
     }
 
@@ -113,7 +137,7 @@ public sealed partial class ConflictReviewViewModel(
     {
         if (SelectedConflict?.EntityKind != SyncEntityKind.Group)
         {
-            throw new InvalidOperationException("Select a group conflict first.");
+            throw new UserInputValidationException("Select a group conflict first.");
         }
 
         var destinations = (await vaultService.GetGroupsAsync())
@@ -144,9 +168,45 @@ public sealed partial class ConflictReviewViewModel(
         ConflictResolutionKind kind,
         bool manualMerge = false) => await RunBusyAsync(async () =>
     {
+        ClearValidationState();
         if (SelectedConflict is null || SelectedRevision is null)
         {
-            throw new InvalidOperationException("Select a conflict revision first.");
+            throw new UserInputValidationException("Select a saved version before continuing.");
+        }
+
+        if (manualMerge && string.IsNullOrWhiteSpace(MergedName))
+        {
+            IsMergedNameInvalid = true;
+            throw new UserInputValidationException("Enter a name for the combined item.");
+        }
+
+        if (manualMerge && SelectedConflict.EntityKind == SyncEntityKind.Group &&
+            string.IsNullOrWhiteSpace(MergedIcon))
+        {
+            IsMergedIconInvalid = true;
+            throw new UserInputValidationException("Enter an icon for the merged group.");
+        }
+
+        if (manualMerge && SelectedConflict.EntityKind == SyncEntityKind.Group &&
+            !ColorOptions.Contains(MergedColorOption))
+        {
+            IsMergedColorInvalid = true;
+            throw new UserInputValidationException("Choose a color for the combined group.");
+        }
+
+        if (manualMerge && SelectedConflict.EntityKind == SyncEntityKind.Secret)
+        {
+            var invalidFields = MergedFields.Where(field => string.IsNullOrWhiteSpace(field.Key)).ToArray();
+            if (invalidFields.Length > 0)
+            {
+                foreach (var field in invalidFields)
+                {
+                    field.IsKeyInvalid = true;
+                }
+
+                throw new UserInputValidationException(
+                    "Enter a label for every merged field, or remove empty fields.");
+            }
         }
 
         var request = new ConflictResolutionRequest
@@ -200,6 +260,36 @@ public sealed partial class ConflictReviewViewModel(
         Revisions.Clear();
         MergedFields.Clear();
         MergedName = MergedNotes = string.Empty;
+        ClearValidationState();
+    }
+
+    partial void OnMergedNameChanged(string value)
+    {
+        IsMergedNameInvalid = false;
+        ErrorMessage = string.Empty;
+    }
+
+    partial void OnMergedIconChanged(string value)
+    {
+        IsMergedIconInvalid = false;
+        ErrorMessage = string.Empty;
+    }
+
+    partial void OnMergedColorOptionChanged(GroupColorOption value)
+    {
+        IsMergedColorInvalid = false;
+        ErrorMessage = string.Empty;
+    }
+
+    private void ClearValidationState()
+    {
+        IsMergedNameInvalid = false;
+        IsMergedIconInvalid = false;
+        IsMergedColorInvalid = false;
+        foreach (var field in MergedFields)
+        {
+            field.IsKeyInvalid = false;
+        }
     }
 }
 
@@ -217,4 +307,7 @@ public sealed partial class ConflictFieldEditViewModel : ObservableObject
     [ObservableProperty] private string value;
     [ObservableProperty] private bool isSensitive;
     [ObservableProperty] private bool isHidden;
+    [ObservableProperty] private bool isKeyInvalid;
+
+    partial void OnKeyChanged(string value) => IsKeyInvalid = false;
 }

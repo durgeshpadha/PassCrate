@@ -1,11 +1,59 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<ContentPage x:Class="PassCrate.App.Views.ResetPage" xmlns="http://schemas.microsoft.com/dotnet/2021/maui" xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" Title="Reset PassCrate">
-    <ScrollView><VerticalStackLayout Padding="24,25,24,38" Spacing="16" MaximumWidthRequest="560" HorizontalOptions="Center">
-        <Border WidthRequest="64" HeightRequest="64" StrokeThickness="0" BackgroundColor="{StaticResource Danger}" StrokeShape="RoundRectangle 20" HorizontalOptions="Center"><Label Text="!" TextColor="White" FontFamily="OpenSansSemibold" FontSize="30" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" /></Border>
-        <Label Text="This cannot be undone" Style="{StaticResource PageTitle}" HorizontalTextAlignment="Center" />
-        <Label Text="This permanently removes your local PassCrate vault, encrypted secrets, key material, provider tokens, preferences, and cache from this device. Any encrypted cloud vault is kept." Style="{StaticResource Muted}" HorizontalTextAlignment="Center" />
-        <Border Style="{StaticResource Card}" Margin="0,10,0,0"><VerticalStackLayout Spacing="8"><Label Text="×  Local vault and passphrase envelope" Style="{StaticResource Muted}" /><Label Text="×  Encrypted secrets and groups on this device" Style="{StaticResource Muted}" /><Label Text="×  Key material and provider tokens" Style="{StaticResource Muted}" /><Label Text="✓  Encrypted cloud vault is preserved" TextColor="{StaticResource Success}" /></VerticalStackLayout></Border>
-        <Label Text="Type RESET to confirm" Style="{StaticResource Eyebrow}" Margin="0,8,0,0" /><Border Style="{StaticResource FieldBorder}"><Entry Text="{Binding Confirmation}" Placeholder="RESET" /></Border>
-        <Label Text="{Binding ErrorMessage}" TextColor="{StaticResource Danger}" /><Button Text="Permanently reset PassCrate" Command="{Binding ResetCommand}" Style="{StaticResource DangerButton}" /><Button Text="Keep my vault" Style="{StaticResource SecondaryButton}" Clicked="OnCancelClicked" />
-    </VerticalStackLayout></ScrollView>
+<ContentPage x:Class="PassCrate.App.Views.ResetPage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             Title="Reset PassCrate">
+    <ScrollView>
+        <VerticalStackLayout Style="{StaticResource PageContent}" MaximumWidthRequest="560">
+            <Border WidthRequest="72" HeightRequest="72" StrokeThickness="0" BackgroundColor="{StaticResource Danger}" StrokeShape="RoundRectangle 24" HorizontalOptions="Center">
+                <Label Text="!" TextColor="White" FontFamily="OpenSansSemibold" FontSize="32" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+            </Border>
+
+            <Border Style="{StaticResource InfoCard}">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Label Text="◎" Style="{StaticResource AccentIcon}" />
+                    <VerticalStackLayout Grid.Column="1" Spacing="3">
+                        <Label Text="Phone verification required" FontFamily="OpenSansSemibold" />
+                        <Label Text="Before anything is deleted, Android will ask for your fingerprint, face unlock, or phone PIN/password. PassCrate never sees that information."
+                               Style="{StaticResource Muted}" />
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
+            <Label Text="Reset and start again" Style="{StaticResource PageTitle}" FontSize="28" HorizontalTextAlignment="Center" />
+            <Label Text="Use this only if you want to erase the vault saved on this device. This cannot be undone."
+                   Style="{StaticResource PageLead}"
+                   HorizontalTextAlignment="Center" />
+
+            <Border Style="{StaticResource DangerCard}">
+                <VerticalStackLayout Spacing="11">
+                    <Label Text="PERMANENTLY DELETED FROM THIS DEVICE" Style="{StaticResource Eyebrow}" TextColor="{StaticResource Danger}" />
+                    <Label Text="×   All saved groups and secrets" Style="{StaticResource Muted}" />
+                    <Label Text="×   Your saved unlock information" Style="{StaticResource Muted}" />
+                    <Label Text="×   Connected cloud-account sign-ins" Style="{StaticResource Muted}" />
+                    <BoxView Style="{StaticResource Divider}" Margin="0,2" />
+                    <Label Text="✓   Existing encrypted cloud backup files are kept" TextColor="{StaticResource Success}" FontFamily="OpenSansSemibold" />
+                    <Label Text="A cloud backup still requires its original passphrase. Resetting does not unlock or recover it."
+                           Style="{StaticResource Muted}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Label Text="To confirm, type RESET below" Style="{StaticResource FieldLabel}" />
+            <Border Style="{StaticResource FieldBorder}">
+                <Border.Triggers>
+                    <DataTrigger TargetType="Border" Binding="{Binding IsConfirmationInvalid}" Value="True">
+                        <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                        <Setter Property="StrokeThickness" Value="2" />
+                    </DataTrigger>
+                </Border.Triggers>
+                <Entry Text="{Binding Confirmation}" Placeholder="RESET" CharacterSpacing="2" />
+            </Border>
+            <Label Text="{Binding ConfirmationMessage}"
+                   Style="{StaticResource ErrorText}"
+                   IsVisible="{Binding IsConfirmationInvalid}" />
+            <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" />
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+            <Button Text="Verify identity and reset" Command="{Binding ResetCommand}" Style="{StaticResource DangerButton}" IsEnabled="{Binding IsNotBusy}" />
+            <Button Text="Cancel and keep my vault" Style="{StaticResource SecondaryButton}" Clicked="OnCancelClicked" />
+        </VerticalStackLayout>
+    </ScrollView>
 </ContentPage>

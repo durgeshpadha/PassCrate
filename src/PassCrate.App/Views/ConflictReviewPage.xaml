@@ -3,67 +3,129 @@
              xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              Title="Conflict review">
-    <Grid ColumnDefinitions="{OnIdiom Phone='*', Tablet='280,*'}" Padding="16" ColumnSpacing="14">
+    <Grid RowDefinitions="{OnIdiom Phone='Auto,*', Tablet='*', Desktop='*'}"
+          ColumnDefinitions="{OnIdiom Phone='*', Tablet='280,*', Desktop='300,*'}"
+          Padding="16"
+          RowSpacing="14"
+          ColumnSpacing="14">
         <VerticalStackLayout Spacing="10">
-            <Label Text="Conflicts" Style="{StaticResource SectionTitle}" />
-            <CollectionView ItemsSource="{Binding ConflictSets}" EmptyView="Your vault has no unresolved conflicts.">
+            <VerticalStackLayout Spacing="3">
+                <Label Text="SYNC REVIEW" Style="{StaticResource AccentEyebrow}" />
+                <Label Text="Items needing your choice" Style="{StaticResource SectionTitle}" />
+            </VerticalStackLayout>
+            <CollectionView ItemsSource="{Binding ConflictSets}"
+                            HeightRequest="{OnIdiom Phone=170, Tablet=-1, Desktop=-1}">
+                <CollectionView.EmptyView>
+                    <Border Style="{StaticResource SuccessCard}">
+                        <Label Text="✓  Your vault has no unresolved conflicts." Style="{StaticResource Muted}" />
+                    </Border>
+                </CollectionView.EmptyView>
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Border Style="{StaticResource Card}" Margin="0,0,0,8">
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,8" Padding="13">
                             <Border.GestureRecognizers>
                                 <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.OpenCommand}" CommandParameter="{Binding .}" />
                             </Border.GestureRecognizers>
-                            <VerticalStackLayout>
+                            <VerticalStackLayout Spacing="3">
                                 <Label Text="{Binding EntityKind}" Style="{StaticResource Eyebrow}" />
-                                <Label Text="{Binding RecordId}" LineBreakMode="MiddleTruncation" />
+                                <Label Text="{Binding RecordId}" FontFamily="OpenSansSemibold" LineBreakMode="MiddleTruncation" />
                             </VerticalStackLayout>
                         </Border>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
             </CollectionView>
         </VerticalStackLayout>
-        <ScrollView Grid.Column="{OnIdiom Phone=0, Tablet=1}">
-            <VerticalStackLayout Spacing="12" Padding="{OnIdiom Phone='0,280,0,0', Tablet='0'}">
-                <Label Text="Compare revisions" Style="{StaticResource SectionTitle}" />
-                <CollectionView ItemsSource="{Binding Revisions}" HeightRequest="120">
+        <ScrollView Grid.Row="{OnIdiom Phone=1, Tablet=0, Desktop=0}"
+                    Grid.Column="{OnIdiom Phone=0, Tablet=1, Desktop=1}">
+            <VerticalStackLayout Spacing="14" MaximumWidthRequest="720" HorizontalOptions="Fill">
+                <VerticalStackLayout Spacing="3">
+                    <Label Text="CHOOSE WHAT TO KEEP" Style="{StaticResource AccentEyebrow}" />
+                    <Label Text="Compare saved versions" Style="{StaticResource SectionTitle}" />
+                </VerticalStackLayout>
+                <CollectionView ItemsSource="{Binding Revisions}" HeightRequest="72">
                     <CollectionView.ItemsLayout><LinearItemsLayout Orientation="Horizontal" ItemSpacing="8" /></CollectionView.ItemsLayout>
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
-                            <Button Text="{Binding DisplayName}" Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.SelectRevisionCommand}" CommandParameter="{Binding .}" Style="{StaticResource SecondaryButton}" />
+                            <Button Text="{Binding DisplayName}" Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.SelectRevisionCommand}" CommandParameter="{Binding .}" Style="{StaticResource CompactButton}" />
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
                 </CollectionView>
-                <HorizontalStackLayout Spacing="8">
-                    <Label Text="Reveal sensitive values" VerticalTextAlignment="Center" />
-                    <Switch IsToggled="{Binding ShowSensitiveValues}" />
-                </HorizontalStackLayout>
-                <Entry Text="{Binding MergedName}" Placeholder="Name" />
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                    <Entry Text="{Binding MergedIcon}" Placeholder="Group icon" MaxLength="8" />
-                    <Entry Grid.Column="1" Text="{Binding MergedColor}" Placeholder="Group color, for example #4F46E5" />
+                <Border Style="{StaticResource InfoCard}">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <VerticalStackLayout Spacing="2"><Label Text="Reveal sensitive values" FontFamily="OpenSansSemibold" /><Label Text="Only while reviewing this conflict" Style="{StaticResource Muted}" /></VerticalStackLayout>
+                        <Switch Grid.Column="1" IsToggled="{Binding ShowSensitiveValues}" VerticalOptions="Center" />
+                    </Grid>
+                </Border>
+
+                <Label Text="COMBINED ITEM" Style="{StaticResource Eyebrow}" />
+                <Border Style="{StaticResource FieldBorder}">
+                    <Border.Triggers>
+                        <DataTrigger TargetType="Border" Binding="{Binding IsMergedNameInvalid}" Value="True">
+                            <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                            <Setter Property="StrokeThickness" Value="2" />
+                        </DataTrigger>
+                    </Border.Triggers>
+                    <Entry Text="{Binding MergedName}" Placeholder="Name" />
+                </Border>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                    <Border Style="{StaticResource FieldBorder}">
+                        <Border.Triggers>
+                            <DataTrigger TargetType="Border" Binding="{Binding IsMergedIconInvalid}" Value="True">
+                                <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                <Setter Property="StrokeThickness" Value="2" />
+                            </DataTrigger>
+                        </Border.Triggers>
+                        <Entry Text="{Binding MergedIcon}" Placeholder="Group icon" MaxLength="8" />
+                    </Border>
+                    <Border Grid.Column="1" Style="{StaticResource FieldBorder}">
+                        <Border.Triggers>
+                            <DataTrigger TargetType="Border" Binding="{Binding IsMergedColorInvalid}" Value="True">
+                                <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                <Setter Property="StrokeThickness" Value="2" />
+                            </DataTrigger>
+                        </Border.Triggers>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                            <Border WidthRequest="22" HeightRequest="22" StrokeThickness="0" BackgroundColor="{Binding MergedColor}" StrokeShape="RoundRectangle 11" VerticalOptions="Center" />
+                            <Picker Grid.Column="1"
+                                    ItemsSource="{Binding ColorOptions}"
+                                    SelectedItem="{Binding MergedColorOption}"
+                                    ItemDisplayBinding="{Binding Name}"
+                                    Title="Choose a color" />
+                        </Grid>
+                    </Border>
                 </Grid>
-                <CollectionView ItemsSource="{Binding MergedFields}" HeightRequest="220">
+                <CollectionView ItemsSource="{Binding MergedFields}" HeightRequest="260">
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
-                            <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
-                                <Entry Text="{Binding Key}" Placeholder="Field" />
-                                <Entry Grid.Column="1" Text="{Binding Value}" IsPassword="{Binding IsHidden}" Placeholder="Value" />
-                                <Button Grid.Column="2" Text="×" Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.RemoveFieldCommand}" CommandParameter="{Binding .}" Style="{StaticResource SecondaryButton}" />
-                            </Grid>
+                            <Border Style="{StaticResource Card}" Margin="0,0,0,8" Padding="12">
+                                <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="8" ColumnSpacing="8">
+                                    <Border Style="{StaticResource FieldBorder}">
+                                        <Border.Triggers>
+                                            <DataTrigger TargetType="Border" Binding="{Binding IsKeyInvalid}" Value="True">
+                                                <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                                <Setter Property="StrokeThickness" Value="2" />
+                                            </DataTrigger>
+                                        </Border.Triggers>
+                                        <Entry Text="{Binding Key}" Placeholder="Field name" />
+                                    </Border>
+                                    <Button Grid.Column="1" Text="×" Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.RemoveFieldCommand}" CommandParameter="{Binding .}" Style="{StaticResource CompactButton}" TextColor="{StaticResource Danger}" MinimumWidthRequest="44" />
+                                    <Border Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource FieldBorder}"><Entry Text="{Binding Value}" IsPassword="{Binding IsHidden}" Placeholder="Value" /></Border>
+                                </Grid>
+                            </Border>
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
                 </CollectionView>
-                <Button Text="Add field" Command="{Binding AddFieldCommand}" Style="{StaticResource SecondaryButton}" />
-                <Editor Text="{Binding MergedNotes}" Placeholder="Merged notes" AutoSize="TextChanges" />
-                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="8">
-                    <Button Text="Keep selected" Command="{Binding KeepSelectedCommand}" />
-                    <Button Grid.Column="1" Text="Save manual merge" Command="{Binding SaveManualMergeCommand}" />
-                    <Button Grid.Row="1" Text="Keep both" Command="{Binding KeepBothCommand}" Style="{StaticResource SecondaryButton}" />
-                    <Button Grid.Row="1" Grid.Column="1" Text="Accept deletion" Command="{Binding AcceptDeletionCommand}" Style="{StaticResource SecondaryButton}" />
-                    <Button Grid.Row="2" Grid.ColumnSpan="2" Text="Restore deleted group" Command="{Binding RestoreGroupCommand}" Style="{StaticResource SecondaryButton}" />
-                    <Button Grid.Row="3" Grid.ColumnSpan="2" Text="Move secrets and delete group" Command="{Binding MoveAndDeleteGroupCommand}" Style="{StaticResource SecondaryButton}" />
-                </Grid>
-                <Label Text="{Binding ErrorMessage}" TextColor="{StaticResource Danger}" />
+                <Button Text="＋ Add field" Command="{Binding AddFieldCommand}" Style="{StaticResource CompactButton}" />
+                <Border Style="{StaticResource FieldBorder}"><Editor Text="{Binding MergedNotes}" Placeholder="Merged notes" AutoSize="TextChanges" /></Border>
+
+                <Label Text="SAVE YOUR CHOICE" Style="{StaticResource Eyebrow}" Margin="0,6,0,0" />
+                <Button Text="Use the selected version" Command="{Binding KeepSelectedCommand}" />
+                <Button Text="Use the combined details above" Command="{Binding SaveManualMergeCommand}" />
+                <Button Text="Keep both versions" Command="{Binding KeepBothCommand}" Style="{StaticResource SecondaryButton}" />
+                <Button Text="Keep it deleted" Command="{Binding AcceptDeletionCommand}" Style="{StaticResource DangerOutlineButton}" />
+                <Button Text="Bring the deleted group back" Command="{Binding RestoreGroupCommand}" Style="{StaticResource SecondaryButton}" />
+                <Button Text="Move its secrets, then delete the group" Command="{Binding MoveAndDeleteGroupCommand}" Style="{StaticResource DangerOutlineButton}" />
+                <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" />
             </VerticalStackLayout>
         </ScrollView>
     </Grid>

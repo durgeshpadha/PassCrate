@@ -4,21 +4,78 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              Title="{Binding PageTitle}">
     <ScrollView>
-        <VerticalStackLayout Padding="22,18,22,32" Spacing="16" MaximumWidthRequest="620" HorizontalOptions="Center">
-            <Label Text="{Binding PageTitle}" Style="{StaticResource PageTitle}" />
-            <Entry Text="{Binding Name}" Placeholder="Group name" MaxLength="80" />
-            <Label Text="Icon" Style="{StaticResource SectionTitle}" />
-            <Picker ItemsSource="{Binding Icons}" SelectedItem="{Binding SelectedIcon}" />
-            <Label Text="Color" Style="{StaticResource SectionTitle}" />
-            <Picker ItemsSource="{Binding Colors}" SelectedItem="{Binding SelectedColor}" />
-            <Border StrokeThickness="0" BackgroundColor="{Binding SelectedColor}" StrokeShape="RoundRectangle 14" Padding="16">
-                <HorizontalStackLayout Spacing="10">
-                    <Label Text="{Binding SelectedIcon}" TextColor="White" FontSize="24" />
-                    <Label Text="{Binding Name, TargetNullValue=Group preview}" TextColor="White" FontFamily="OpenSansSemibold" VerticalTextAlignment="Center" />
-                </HorizontalStackLayout>
+        <VerticalStackLayout Style="{StaticResource PageContent}" MaximumWidthRequest="600">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                <Border Style="{StaticResource IconTile}" WidthRequest="56" HeightRequest="56" StrokeShape="RoundRectangle 18">
+                    <Label Text="{Binding SelectedIcon}" TextColor="{Binding SelectedColorHex}" FontSize="26" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                </Border>
+                <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
+                    <Label Text="ORGANIZE YOUR VAULT" Style="{StaticResource AccentEyebrow}" />
+                    <Label Text="{Binding PageTitle}" Style="{StaticResource PageTitle}" FontSize="27" />
+                </VerticalStackLayout>
+            </Grid>
+            <Label Text="Groups make related secrets easier to find without exposing their contents."
+                   Style="{StaticResource PageLead}" />
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="GROUP NAME" Style="{StaticResource FieldLabel}" />
+                    <Border Style="{StaticResource FieldBorder}">
+                        <Border.Triggers>
+                            <DataTrigger TargetType="Border" Binding="{Binding IsNameInvalid}" Value="True">
+                                <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                <Setter Property="StrokeThickness" Value="2" />
+                            </DataTrigger>
+                        </Border.Triggers>
+                        <Entry Text="{Binding Name}" Placeholder="e.g. Personal" MaxLength="80" />
+                    </Border>
+                    <Label Text="ICON" Style="{StaticResource FieldLabel}" />
+                    <Border Style="{StaticResource FieldBorder}">
+                        <Border.Triggers>
+                            <DataTrigger TargetType="Border" Binding="{Binding IsIconInvalid}" Value="True">
+                                <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                <Setter Property="StrokeThickness" Value="2" />
+                            </DataTrigger>
+                        </Border.Triggers>
+                        <Picker ItemsSource="{Binding Icons}"
+                                SelectedItem="{Binding SelectedIconOption}"
+                                ItemDisplayBinding="{Binding DisplayName}"
+                                Title="Choose an icon" />
+                    </Border>
+                    <Label Text="COLOR" Style="{StaticResource FieldLabel}" />
+                    <Border Style="{StaticResource FieldBorder}">
+                        <Border.Triggers>
+                            <DataTrigger TargetType="Border" Binding="{Binding IsColorInvalid}" Value="True">
+                                <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                <Setter Property="StrokeThickness" Value="2" />
+                            </DataTrigger>
+                        </Border.Triggers>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                            <Border WidthRequest="22" HeightRequest="22" StrokeThickness="0" BackgroundColor="{Binding SelectedColorHex}" StrokeShape="RoundRectangle 11" VerticalOptions="Center" />
+                            <Picker Grid.Column="1"
+                                    ItemsSource="{Binding Colors}"
+                                    SelectedItem="{Binding SelectedColorOption}"
+                                    ItemDisplayBinding="{Binding Name}"
+                                    Title="Choose a color" />
+                        </Grid>
+                    </Border>
+                </VerticalStackLayout>
             </Border>
+
+            <Label Text="PREVIEW" Style="{StaticResource FieldLabel}" />
+            <Border StrokeThickness="0" BackgroundColor="{Binding SelectedColorHex}" StrokeShape="RoundRectangle 20" Padding="18">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="13">
+                    <Border WidthRequest="46" HeightRequest="46" Stroke="#66FFFFFF" BackgroundColor="#22FFFFFF" StrokeShape="RoundRectangle 14">
+                        <Label Text="{Binding SelectedIcon}" TextColor="White" FontSize="24" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    </Border>
+                    <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                        <Label Text="{Binding Name, TargetNullValue=Group preview}" TextColor="White" FontFamily="OpenSansSemibold" FontSize="17" />
+                        <Label Text="Protected group" TextColor="#DDFFFFFF" FontSize="12" />
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
+            <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" />
             <Button Text="Save group" Command="{Binding SaveCommand}" />
-            <Label Text="{Binding ErrorMessage}" TextColor="{StaticResource Danger}" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

@@ -3,31 +3,49 @@
              xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              Title="Search">
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Padding="20,14,20,24" RowSpacing="12">
-        <SearchBar Text="{Binding Query}" Placeholder="Search names, groups, and field labels" />
-        <Border Grid.Row="1" StrokeThickness="0" BackgroundColor="{AppThemeBinding Light=#EAFBF4, Dark=#102B26}" StrokeShape="RoundRectangle 13" Padding="12">
-            <Label Text="⌁  Sensitive values and notes are never included in search." TextColor="{StaticResource Success}" FontSize="11" />
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" Padding="20,14,20,24" RowSpacing="12">
+        <VerticalStackLayout Spacing="3">
+            <Label Text="FIND IT FAST" Style="{StaticResource AccentEyebrow}" />
+            <Label Text="Search your vault" Style="{StaticResource PageTitle}" FontSize="26" />
+        </VerticalStackLayout>
+        <SearchBar Grid.Row="1" Text="{Binding Query}" Placeholder="Names, groups, and field labels" />
+        <Border Grid.Row="2" Style="{StaticResource SuccessCard}" Padding="12">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                <Label Text="✓" TextColor="{StaticResource Success}" FontFamily="OpenSansSemibold" />
+                <Label Grid.Column="1" Text="Secret values and notes are never searched." Style="{StaticResource Muted}" FontSize="11" />
+            </Grid>
         </Border>
-        <Label Grid.Row="2" Text="Groups" FontFamily="OpenSansSemibold" />
-        <CollectionView Grid.Row="3" ItemsSource="{Binding GroupResults}" SelectionMode="None" HeightRequest="82">
+        <Label Grid.Row="3" Text="Groups" Style="{StaticResource SectionTitle}" FontSize="16" />
+        <CollectionView Grid.Row="4" ItemsSource="{Binding GroupResults}" SelectionMode="None" HeightRequest="88">
             <CollectionView.ItemsLayout>
                 <LinearItemsLayout Orientation="Horizontal" ItemSpacing="8" />
             </CollectionView.ItemsLayout>
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <Border Style="{StaticResource Card}" WidthRequest="150">
+                    <Border Style="{StaticResource Card}" WidthRequest="160" Padding="13">
                         <Border.GestureRecognizers>
                             <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.OpenGroupCommand}" CommandParameter="{Binding .}" />
                         </Border.GestureRecognizers>
-                        <HorizontalStackLayout Spacing="8">
-                            <Label Text="{Binding Icon}" TextColor="{Binding Color}" />
-                            <Label Text="{Binding Name}" FontFamily="OpenSansSemibold" LineBreakMode="TailTruncation" />
-                        </HorizontalStackLayout>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="9">
+                            <Border Style="{StaticResource IconTile}" WidthRequest="34" HeightRequest="34" StrokeShape="RoundRectangle 11">
+                                <Label Text="{Binding Icon}" TextColor="{Binding Color}" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                            </Border>
+                            <Label Grid.Column="1" Text="{Binding Name}" FontFamily="OpenSansSemibold" LineBreakMode="TailTruncation" VerticalTextAlignment="Center" />
+                        </Grid>
                     </Border>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
-        <CollectionView Grid.Row="4" ItemsSource="{Binding SecretResults}" SelectionMode="None" EmptyView="No matching secrets.">
+        <CollectionView Grid.Row="5" ItemsSource="{Binding SecretResults}" SelectionMode="None">
+            <CollectionView.EmptyView>
+                <VerticalStackLayout Padding="20,42" Spacing="8" HorizontalOptions="Center">
+                    <Border Style="{StaticResource IconTile}" WidthRequest="50" HeightRequest="50" StrokeShape="RoundRectangle 16">
+                        <Label Text="⌕" Style="{StaticResource AccentIcon}" FontSize="23" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    </Border>
+                    <Label Text="No matching secrets" FontFamily="OpenSansSemibold" HorizontalTextAlignment="Center" />
+                    <Label Text="Try a different name, group, or field label." Style="{StaticResource Muted}" HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
             <CollectionView.ItemTemplate>
                 <DataTemplate>
                     <Border Style="{StaticResource Card}" Margin="0,0,0,9">
@@ -35,12 +53,12 @@
                             <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.OpenSecretCommand}" CommandParameter="{Binding .}" />
                         </Border.GestureRecognizers>
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-                            <Border WidthRequest="42" HeightRequest="42" StrokeThickness="0" BackgroundColor="{StaticResource PrimaryLight}" StrokeShape="RoundRectangle 13">
-                                <Label Text="⌁" TextColor="{StaticResource Primary}" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                            <Border Style="{StaticResource IconTile}" WidthRequest="42" HeightRequest="42" StrokeShape="RoundRectangle 13">
+                                <Label Text="⌁" Style="{StaticResource AccentIcon}" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
                             </Border>
                             <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
                                 <Label Text="{Binding Name}" FontFamily="OpenSansSemibold" />
-                                <Label Text="Encrypted secret" Style="{StaticResource Muted}" />
+                                <Label Text="Protected item" Style="{StaticResource Muted}" />
                             </VerticalStackLayout>
                             <Label Grid.Column="2" Text="›" FontSize="24" Style="{StaticResource Muted}" />
                         </Grid>

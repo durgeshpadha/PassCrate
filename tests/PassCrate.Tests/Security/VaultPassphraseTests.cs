@@ -24,7 +24,13 @@ public sealed class VaultPassphraseTests
     [Fact]
     public void VaultPassphrasePolicyRequiresStrength()
     {
-        Assert.Throws<CredentialValidationException>(() => CredentialPolicy.ValidateVaultPassphrase("short"));
+        var missing = Assert.Throws<CredentialValidationException>(
+            () => CredentialPolicy.ValidateVaultPassphrase(string.Empty));
+        Assert.Equal("Enter your vault passphrase.", missing.Message);
+
+        var shortPassphrase = Assert.Throws<CredentialValidationException>(
+            () => CredentialPolicy.ValidateVaultPassphrase("short"));
+        Assert.Contains("at least 16 characters", shortPassphrase.Message);
         CredentialPolicy.ValidateVaultPassphrase(Passphrase);
     }
 }

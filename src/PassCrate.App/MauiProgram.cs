@@ -45,9 +45,11 @@ public static class MauiProgram
 #if ANDROID
         builder.Services.AddSingleton<IDeviceKeyProtectionService, AndroidDeviceKeyProtectionService>();
         builder.Services.AddSingleton<IDeviceCredentialStore, MauiDeviceCredentialStore>();
+        builder.Services.AddSingleton<IDeviceOwnerAuthenticationService, AndroidDeviceOwnerAuthenticationService>();
 #elif IOS
         builder.Services.AddSingleton<IDeviceKeyProtectionService, IosDeviceKeyProtectionService>();
         builder.Services.AddSingleton<IDeviceCredentialStore, IosDeviceCredentialStore>();
+        builder.Services.AddSingleton<IDeviceOwnerAuthenticationService, IosDeviceOwnerAuthenticationService>();
 #endif
         builder.Services.AddSingleton<IKeyManagementService, KeyManagementService>();
         builder.Services.AddSingleton<IVaultService, VaultService>();

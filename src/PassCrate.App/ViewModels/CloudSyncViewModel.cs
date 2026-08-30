@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PassCrate.Core.Interfaces;
 using PassCrate.Core.Models;
+using PassCrate.Core.Security;
 
 namespace PassCrate.App.ViewModels;
 
@@ -24,6 +25,9 @@ public sealed partial class CloudSyncViewModel(
     [ObservableProperty] private string deleteConfirmation = string.Empty;
     [ObservableProperty] private string deleteAllConfirmation = string.Empty;
     [ObservableProperty] private bool canReconnect;
+    [ObservableProperty] private bool isVaultPassphraseInvalid;
+    [ObservableProperty] private bool isDeleteConfirmationInvalid;
+    [ObservableProperty] private bool isDeleteAllConfirmationInvalid;
 
     public bool IsDisabled => !IsEnabled;
 
@@ -60,7 +64,17 @@ public sealed partial class CloudSyncViewModel(
     [RelayCommand]
     private async Task EnableAsync() => await RunBusyAsync(async () =>
     {
-        await cloudSync.EnableAsync(ParseProvider(), VaultPassphrase);
+        ClearValidationState();
+        ValidateVaultPassphraseInput();
+        try
+        {
+            await cloudSync.EnableAsync(ParseProvider(), VaultPassphrase);
+        }
+        catch (VaultUnlockException)
+        {
+            IsVaultPassphraseInvalid = true;
+            throw;
+        }
         IsEnabled = true;
         VaultPassphrase = string.Empty;
         ApplyStatus(cloudSync.Status);
@@ -105,17 +119,33 @@ public sealed partial class CloudSyncViewModel(
     [RelayCommand]
     private async Task DeleteCloudVaultAsync() => await RunBusyAsync(async () =>
     {
+        ClearValidationState();
+        ValidateVaultPassphraseInput();
+        if (!string.Equals(DeleteConfirmation.Trim(), "DELETE CLOUD VAULT", StringComparison.Ordinal))
+        {
+            IsDeleteConfirmationInvalid = true;
+            throw new UserInputValidationException("Type DELETE CLOUD VAULT exactly to confirm deletion.");
+        }
+
         if (Shell.Current.CurrentPage is not Page page ||
             !await page.DisplayAlertAsync(
-                "Delete encrypted cloud vault?",
-                "This permanently deletes this vault's PassCrate snapshots from the connected provider. Local data remains on this device.",
-                "Delete cloud vault",
+                "Delete this cloud backup?",
+                "This permanently deletes this vault's backups from the connected cloud account. Your vault on this device will not be deleted.",
+                "Delete cloud backup",
                 "Cancel"))
         {
             return;
         }
 
-        await cloudSync.DeleteCloudVaultAsync(VaultPassphrase, DeleteConfirmation);
+        try
+        {
+            await cloudSync.DeleteCloudVaultAsync(VaultPassphrase, DeleteConfirmation);
+        }
+        catch (VaultUnlockException)
+        {
+            IsVaultPassphraseInvalid = true;
+            throw;
+        }
         VaultPassphrase = string.Empty;
         DeleteConfirmation = string.Empty;
         IsEnabled = false;
@@ -125,17 +155,33 @@ public sealed partial class CloudSyncViewModel(
     [RelayCommand]
     private async Task DeleteAllProviderDataAsync() => await RunBusyAsync(async () =>
     {
+        ClearValidationState();
+        ValidateVaultPassphraseInput();
+        if (!string.Equals(DeleteAllConfirmation.Trim(), "DELETE ALL CLOUD VAULTS", StringComparison.Ordinal))
+        {
+            IsDeleteAllConfirmationInvalid = true;
+            throw new UserInputValidationException("Type DELETE ALL CLOUD VAULTS exactly to confirm deletion.");
+        }
+
         if (Shell.Current.CurrentPage is not Page page ||
             !await page.DisplayAlertAsync(
-                "Delete all PassCrate cloud data?",
-                "Every PassCrate vault in this provider app folder will be removed. Provider retention policies may still apply.",
-                "Delete all cloud vaults",
+                "Delete all PassCrate cloud backups?",
+                "Every PassCrate backup in the connected cloud account will be removed. Your vault on this device will not be deleted.",
+                "Delete all backups",
                 "Cancel"))
         {
             return;
         }
 
-        await cloudSync.DeleteAllProviderDataAsync(VaultPassphrase, DeleteAllConfirmation);
+        try
+        {
+            await cloudSync.DeleteAllProviderDataAsync(VaultPassphrase, DeleteAllConfirmation);
+        }
+        catch (VaultUnlockException)
+        {
+            IsVaultPassphraseInvalid = true;
+            throw;
+        }
         ClearSensitiveState();
         IsEnabled = false;
         ApplyStatus(cloudSync.Status);
@@ -180,5 +226,44 @@ public sealed partial class CloudSyncViewModel(
         VaultPassphrase = string.Empty;
         DeleteConfirmation = string.Empty;
         DeleteAllConfirmation = string.Empty;
+        ClearValidationState();
+    }
+
+    partial void OnVaultPassphraseChanged(string value)
+    {
+        IsVaultPassphraseInvalid = false;
+        ErrorMessage = string.Empty;
+    }
+
+    partial void OnDeleteConfirmationChanged(string value)
+    {
+        IsDeleteConfirmationInvalid = false;
+        ErrorMessage = string.Empty;
+    }
+
+    partial void OnDeleteAllConfirmationChanged(string value)
+    {
+        IsDeleteAllConfirmationInvalid = false;
+        ErrorMessage = string.Empty;
+    }
+
+    private void ValidateVaultPassphraseInput()
+    {
+        try
+        {
+            CredentialPolicy.ValidateVaultPassphrase(VaultPassphrase);
+        }
+        catch (CredentialValidationException)
+        {
+            IsVaultPassphraseInvalid = true;
+            throw;
+        }
+    }
+
+    private void ClearValidationState()
+    {
+        IsVaultPassphraseInvalid = false;
+        IsDeleteConfirmationInvalid = false;
+        IsDeleteAllConfirmationInvalid = false;
     }
 }

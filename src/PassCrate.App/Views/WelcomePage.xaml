@@ -3,40 +3,65 @@
              xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              Shell.NavBarIsVisible="False">
-    <Grid RowDefinitions="1.25*,Auto" BackgroundColor="{AppThemeBinding Light={StaticResource LightBackground}, Dark={StaticResource DarkBackground}}">
-        <Border Grid.Row="0" StrokeThickness="0" StrokeShape="RoundRectangle 0,0,38,38" Padding="30,44,30,34">
+    <Grid RowDefinitions="*,Auto">
+        <Border StrokeThickness="0"
+                StrokeShape="RoundRectangle 0,0,34,34"
+                Padding="28,46,28,30">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#151B48" Offset="0" />
-                    <GradientStop Color="#0B112A" Offset="1" />
+                    <GradientStop Color="#171E4A" Offset="0" />
+                    <GradientStop Color="#090E1A" Offset="1" />
                 </LinearGradientBrush>
             </Border.Background>
             <Grid RowDefinitions="Auto,*,Auto">
-                <HorizontalStackLayout Spacing="10" Margin="0,12,0,0">
-                    <Border WidthRequest="38" HeightRequest="42" StrokeThickness="0" BackgroundColor="#6366E8" StrokeShape="RoundRectangle 13">
-                        <Image Source="brand_shield.png" WidthRequest="34" HeightRequest="34" HorizontalOptions="Center" VerticalOptions="Center" />
+                <HorizontalStackLayout Spacing="11" Margin="0,8,0,0">
+                    <Border WidthRequest="40" HeightRequest="44" StrokeThickness="0" BackgroundColor="#6366E8" StrokeShape="RoundRectangle 14">
+                        <Image Source="brand_shield.png" WidthRequest="35" HeightRequest="35" HorizontalOptions="Center" VerticalOptions="Center" />
                     </Border>
-                    <Label Text="PassCrate" TextColor="White" FontFamily="OpenSansSemibold" FontSize="18" VerticalTextAlignment="Center" />
+                    <Label Text="PassCrate" TextColor="White" FontFamily="OpenSansSemibold" FontSize="19" VerticalTextAlignment="Center" />
                 </HorizontalStackLayout>
-                <VerticalStackLayout Grid.Row="1" HorizontalOptions="Center" VerticalOptions="Center" Spacing="18">
-                    <Border WidthRequest="150" HeightRequest="150" Stroke="#4D56A8" StrokeThickness="1" StrokeShape="RoundRectangle 75" BackgroundColor="#171E4A">
-                        <Border WidthRequest="86" HeightRequest="94" StrokeThickness="0" StrokeShape="RoundRectangle 28" BackgroundColor="#5B5CE2" HorizontalOptions="Center" VerticalOptions="Center">
-                            <Image Source="brand_shield.png" WidthRequest="76" HeightRequest="76" HorizontalOptions="Center" VerticalOptions="Center" />
-                        </Border>
+
+                <Border Grid.Row="1"
+                        WidthRequest="142"
+                        HeightRequest="142"
+                        Stroke="#394278"
+                        BackgroundColor="#141B3C"
+                        StrokeShape="RoundRectangle 46"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center">
+                    <Border WidthRequest="82"
+                            HeightRequest="90"
+                            StrokeThickness="0"
+                            BackgroundColor="#5B5CE2"
+                            StrokeShape="RoundRectangle 27"
+                            HorizontalOptions="Center"
+                            VerticalOptions="Center">
+                        <Image Source="brand_shield.png" WidthRequest="72" HeightRequest="72" HorizontalOptions="Center" VerticalOptions="Center" />
                     </Border>
-                </VerticalStackLayout>
+                </Border>
+
                 <VerticalStackLayout Grid.Row="2" Spacing="9">
-                    <Label Text="Your secrets stay&#10;where they belong." TextColor="White" FontFamily="OpenSansSemibold" FontSize="31" LineHeight="1.05" />
-                    <Label Text="Encrypted on your device. Accessible only to you." TextColor="#A8B0CA" FontSize="14" />
+                    <Label Text="Your private vault, beautifully simple."
+                           TextColor="White"
+                           FontFamily="OpenSansSemibold"
+                           FontSize="29"
+                           LineHeight="1.08" />
+                    <Label Text="Secure passwords, keys, and private notes with encryption that stays under your control."
+                           TextColor="#B5BED8"
+                           FontSize="14"
+                           LineHeight="1.25" />
                 </VerticalStackLayout>
             </Grid>
         </Border>
-        <VerticalStackLayout Grid.Row="1" Padding="30,24,30,34" Spacing="11">
-            <Label Text="●  MOCK DATA REMOVED · LOCAL-FIRST" TextColor="{StaticResource Success}" FontSize="10" CharacterSpacing="1.1" HorizontalTextAlignment="Center" />
-            <Button Text="Create account  →" Command="{Binding CreateAccountCommand}" />
-            <Button Text="I already have an account" Style="{StaticResource SecondaryButton}" Command="{Binding SignInCommand}" />
-            <Button Text="Restore from Cloud" Style="{StaticResource SecondaryButton}" Command="{Binding RestoreFromCloudCommand}" />
-            <Label Text="Local-first  ·  No tracking  ·  Cloud sync is optional" Style="{StaticResource Muted}" FontSize="10" HorizontalTextAlignment="Center" />
+
+        <VerticalStackLayout Grid.Row="1" Padding="24,22,24,28" Spacing="11">
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8" Margin="0,0,0,4">
+                <Label Text="●  WORKS OFFLINE" TextColor="{StaticResource Success}" FontSize="9" CharacterSpacing="0.8" HorizontalTextAlignment="Center" />
+                <Label Grid.Column="1" Text="NO TRACKING" Style="{StaticResource Eyebrow}" FontSize="9" HorizontalTextAlignment="Center" />
+                <Label Grid.Column="2" Text="FULLY ENCRYPTED" Style="{StaticResource Eyebrow}" FontSize="9" HorizontalTextAlignment="Center" />
+            </Grid>
+            <Button Text="Create my vault  →" Command="{Binding CreateAccountCommand}" />
+            <Button Text="Restore from cloud" Style="{StaticResource SecondaryButton}" Command="{Binding RestoreFromCloudCommand}" />
         </VerticalStackLayout>
     </Grid>
 </ContentPage>
