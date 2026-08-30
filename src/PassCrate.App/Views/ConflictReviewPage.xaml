@@ -2,6 +2,7 @@
 <ContentPage x:Class="PassCrate.App.Views.ConflictReviewPage"
              xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             BackgroundColor="{AppThemeBinding Light={StaticResource LightBackground}, Dark={StaticResource DarkBackground}}"
              Title="Conflict review">
     <Grid RowDefinitions="{OnIdiom Phone='Auto,*', Tablet='*', Desktop='*'}"
           ColumnDefinitions="{OnIdiom Phone='*', Tablet='280,*', Desktop='300,*'}"

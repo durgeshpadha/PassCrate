@@ -2,6 +2,7 @@
 <ContentPage x:Class="PassCrate.App.Views.SearchPage"
              xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             BackgroundColor="{AppThemeBinding Light={StaticResource LightBackground}, Dark={StaticResource DarkBackground}}"
              Title="Search">
     <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" Padding="20,14,20,24" RowSpacing="12">
         <VerticalStackLayout Spacing="3">
