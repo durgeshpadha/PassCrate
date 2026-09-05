@@ -108,6 +108,7 @@ public sealed record CloudSyncConfiguration
     public IReadOnlyList<string> HeadSnapshotIds { get; init; } = [];
     public long Generation { get; init; }
     public DateTimeOffset? LastSuccessfulSyncAt { get; init; }
+    public bool IsRecoveryUploadPending { get; init; }
 }
 
 public sealed record CloudSyncStatus
@@ -287,6 +288,11 @@ public sealed record CloudVaultMergePreview(
     int LocalPreferredCollisions)
 {
     public int ImportedItems => checked(CloudOnlyGroups + CloudOnlySecrets);
+    public int CombinedGroups { get; init; }
+    public int DuplicateSecrets { get; init; }
+    public int SecretsNeedingReview { get; init; }
+    public int AmbiguousGroupsPreserved { get; init; }
+    public int AmbiguousSecretsPreserved { get; init; }
 }
 
 public sealed record CloudVaultMergeResult(

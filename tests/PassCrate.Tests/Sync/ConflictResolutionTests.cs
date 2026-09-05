@@ -107,6 +107,55 @@ public sealed class ConflictResolutionTests
         Assert.Single(await context.Repository.ListConflictsAsync());
     }
 
+    [Fact]
+    public async Task MoveSecretsAndDeleteGroup_CommitsAsOneResolutionTransaction()
+    {
+        await using var context = await TestContext.CreateAsync();
+        await context.Keys.InitializeVaultAsync("correct horse battery staple 2026");
+        var source = await context.Vault.CreateGroupAsync("Source", "S", "#4F46E5");
+        var destination = await context.Vault.CreateGroupAsync("Destination", "D", "#10B981");
+        var secret = await context.Vault.AddSecretAsync(source.Id, new SecretDocument
+        {
+            Name = "Moved secret",
+            Notes = "still decrypts",
+        });
+        var state = await context.Repository.ExportStateV2Async("phone-a");
+        var sourceEnvelope = Assert.Single(state.Groups, item => item.RecordId == source.Id);
+        var active = Assert.Single(sourceEnvelope.Revisions);
+        var deleted = SyncRevisionFactory.Create(
+            SyncEntityKind.Group,
+            source.Id,
+            new VersionVector().Increment("phone-b"),
+            true,
+            DateTimeOffset.UtcNow,
+            source,
+            isConflict: true);
+        var conflictedState = state with
+        {
+            Groups = state.Groups.Select(item => item.RecordId == source.Id
+                ? item with { Revisions = [active with { IsConflict = true }, deleted] }
+                : item).ToArray(),
+        };
+        await context.Repository.ApplyMergedStateV2Async(conflictedState, Configuration());
+
+        await context.Repository.ResolveAsync(new ConflictResolutionRequest
+        {
+            EntityKind = SyncEntityKind.Group,
+            RecordId = source.Id,
+            Resolution = ConflictResolutionKind.MoveSecretsAndDeleteGroup,
+            SelectedRevisionId = active.RevisionId,
+            DestinationGroupId = destination.Id,
+        }, "resolving-phone");
+
+        Assert.Null(await context.Repository.GetGroupAsync(source.Id));
+        var moved = Assert.Single(
+            await context.Repository.GetAllSecretsAsync(),
+            item => item.GroupId == destination.Id);
+        Assert.Equal(secret, moved.Id);
+        Assert.Equal("still decrypts", (await context.Vault.ReadSecretAsync(moved.Id)).Notes);
+        Assert.Empty(await context.Repository.ListConflictsAsync());
+    }
+
     private static CloudVaultStateV2 GroupState(
         string groupId,
         params SyncRecordRevision<VaultGroup>[] revisions) => new()

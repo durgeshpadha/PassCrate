@@ -55,7 +55,7 @@ PassCrate sends `token_access_type=offline`, receives a short-lived access token
 
 Opening Google or Dropbox authorization moves PassCrate out of the foreground, so the vault locks by design and its in-memory key is cleared. After the provider grants access, unlock PassCrate again; the pending provider setup resumes instead of requiring a second Connect attempt. Authorization approval alone never unlocks the vault.
 
-If the authorized account contains a different PassCrate vault, setup enters a dedicated decision screen instead of uploading automatically. The user may verify and restore the cloud vault, replace the selected cloud vault only after a verified local upload, preview and perform a local-preferred merge, or disconnect and choose another account.
+If the authorized account contains a different PassCrate vault, setup enters a dedicated decision screen instead of uploading automatically. The user may verify and restore the cloud vault, replace the selected cloud vault only after a verified local upload, preview and combine both vaults, or disconnect and choose another account. Combine matches group names ignoring capitalization and surrounding spaces only when one phone group is an unambiguous match; ambiguous groups and secrets stay separate. Identical secrets are kept once, including during a retry after cloud cleanup fails; same-name secrets with different contents are preserved in Conflict Review. Editing or deleting an unresolved secret is paused until that review is complete. Choosing Keep both adds `(duplicate)` to the cloud copy's name, or a numbered duplicate suffix when that name already exists. Matching record IDs retain local preference.
 
 ## Required validation
 

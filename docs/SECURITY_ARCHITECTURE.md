@@ -29,7 +29,7 @@ Backgrounding, inactivity, manual lock, and detected iOS capture lock the vault 
 
 ## Cloud recovery and V2 snapshots
 
-Cloud sync is opt-in and has no PassCrate backend. Argon2id derives a recovery KEK from the current vault passphrase and wraps the DEK for cloud recovery. The passphrase is never stored or uploaded. Changing the passphrase while sync is enabled replaces the authoritative cloud recovery envelope; restore selects that newest authoritative snapshot instead of accepting an obsolete passphrase through an older snapshot.
+Cloud sync is opt-in and has no PassCrate backend. Argon2id derives a recovery KEK from the current vault passphrase and wraps the DEK for cloud recovery. The passphrase is never stored or uploaded. Passphrase rotation verifies an old-recovery cloud checkpoint before atomically committing the new local metadata and a durable pending-recovery flag. The final new-recovery snapshot is then uploaded and verified; if that publish is interrupted, a later sync uses the pending local recovery envelope instead of adopting an older remote envelope. Restore selects the newest authoritative completed snapshot instead of accepting an obsolete passphrase through an older snapshot.
 
 `CloudVaultSnapshotV2` authenticates a minimal random vault/snapshot header and encrypts the complete state with the DEK. PassCrate writes V2 only; this pre-release application intentionally has no V1 migration path. Development vaults created with obsolete formats must be reset and recreated.
 

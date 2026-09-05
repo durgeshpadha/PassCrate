@@ -36,10 +36,12 @@ public sealed partial class CloudVaultResolutionOption(
     public bool IsRecommended { get; } = isRecommended;
     public bool IsDanger { get; } = isDanger;
     public string AccessibilityDescription =>
-        $"{Title}. {Summary}{(IsRecommended ? " Recommended." : string.Empty)}";
+        $"{Title}. {Summary}{(IsRecommended ? " Recommended." : string.Empty)} " +
+        (IsSelected ? "Selected." : "Not selected.");
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectionGlyph))]
+    [NotifyPropertyChangedFor(nameof(AccessibilityDescription))]
     private bool isSelected;
 
     public string SelectionGlyph => IsSelected ? "●" : "○";
@@ -62,7 +64,7 @@ public sealed partial class CloudSyncViewModel(
         new(
             CloudVaultResolutionChoice.Combine,
             "Combine both vaults",
-            "Keep unique items from both. This phone's version is kept when an item exists in both vaults.",
+            "Combine matching groups and skip identical secrets. Review different versions before choosing one or keeping both.",
             isRecommended: true),
         new(
             CloudVaultResolutionChoice.UseCloud,
@@ -131,6 +133,10 @@ public sealed partial class CloudSyncViewModel(
     private CloudVaultResolutionChoice selectedResolutionChoice = CloudVaultResolutionChoice.None;
     [ObservableProperty] private bool hasSingleMismatchVault;
     [ObservableProperty] private bool hasMultipleMismatchVaults;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsChoosingResolution))]
+    [NotifyPropertyChangedFor(nameof(IsCompletingResolution))]
+    private bool hasMismatchLoadError;
     [ObservableProperty] private string busyMessage = string.Empty;
     [ObservableProperty] private string restoreCloudPassphrase = string.Empty;
     [ObservableProperty] private string replaceLocalPassphrase = string.Empty;
@@ -151,9 +157,9 @@ public sealed partial class CloudSyncViewModel(
     public bool IsGoogleDriveSelected => SelectedProvider == "Google Drive";
     public bool IsDropboxSelected => SelectedProvider == "Dropbox";
     public bool IsChoosingResolution =>
-        HasVaultMismatch && ResolutionStep == CloudVaultResolutionStep.ChooseAction;
+        HasVaultMismatch && !HasMismatchLoadError && ResolutionStep == CloudVaultResolutionStep.ChooseAction;
     public bool IsCompletingResolution =>
-        HasVaultMismatch && ResolutionStep == CloudVaultResolutionStep.CompleteAction;
+        HasVaultMismatch && !HasMismatchLoadError && ResolutionStep == CloudVaultResolutionStep.CompleteAction;
     public bool CanContinueResolution => SelectedResolutionChoice != CloudVaultResolutionChoice.None;
     public bool IsCombineResolution =>
         IsCompletingResolution && SelectedResolutionChoice == CloudVaultResolutionChoice.Combine;
@@ -250,52 +256,92 @@ public sealed partial class CloudSyncViewModel(
     public async Task LoadAsync()
     {
         _isLoading = true;
-        var configuration = await repository.GetConfigurationAsync();
-        IsEnabled = configuration?.IsEnabled == true;
-        if (configuration is not null)
+        cloudSync.StatusChanged -= OnStatusChanged;
+        try
         {
-            SelectedProvider = configuration.Provider == CloudProviderKind.GoogleDrive ? "Google Drive" : "Dropbox";
-            WifiOnly = configuration.WifiOnly;
-            LastSyncText = configuration.LastSuccessfulSyncAt?.ToLocalTime().ToString("g") ?? "Never";
-            StatusText = cloudSync.Status.Provider == configuration.Provider
-                ? cloudSync.Status.Message
-                : IsEnabled ? "Ready to synchronize." : "Cloud sync is off.";
-        }
-
-        if (configuration is { IsEnabled: true } &&
-            cloudSync.Status.State == CloudSyncState.Disabled &&
-            cloudSync.Status.Provider is null)
-        {
-            ApplyStatus(new CloudSyncStatus
+            ErrorMessage = string.Empty;
+            HasMismatchLoadError = false;
+            var configuration = await repository.GetConfigurationAsync();
+            IsEnabled = configuration?.IsEnabled == true;
+            if (configuration is not null)
             {
-                State = CloudSyncState.Ready,
-                Provider = configuration.Provider,
-                LastSuccessfulSyncAt = configuration.LastSuccessfulSyncAt,
-                Message = "Ready to synchronize.",
-            });
-        }
-        else
-        {
-            ApplyStatus(cloudSync.Status);
-        }
+                SelectedProvider = configuration.Provider == CloudProviderKind.GoogleDrive ? "Google Drive" : "Dropbox";
+                WifiOnly = configuration.WifiOnly;
+                LastSyncText = configuration.LastSuccessfulSyncAt?.ToLocalTime().ToString("g") ?? "Never";
+                StatusText = cloudSync.Status.Provider == configuration.Provider
+                    ? cloudSync.Status.Message
+                    : IsEnabled ? "Ready to synchronize." : "Cloud sync is off.";
+            }
 
-        if (!IsEnabled && setupContinuation.TryGetProvider(out var pendingProvider))
-        {
-            SelectedProvider = ProviderName(pendingProvider);
-            StatusText = $"{SelectedProvider} access is approved. Enter your vault passphrase and select Connect to finish.";
-            SyncStatusColor = Color.FromArgb("#5B5CE2");
-        }
+            if (configuration is { IsEnabled: true } &&
+                cloudSync.Status.State == CloudSyncState.Disabled &&
+                cloudSync.Status.Provider is null)
+            {
+                ApplyStatus(new CloudSyncStatus
+                {
+                    State = CloudSyncState.Ready,
+                    Provider = configuration.Provider,
+                    LastSuccessfulSyncAt = configuration.LastSuccessfulSyncAt,
+                    Message = "Ready to synchronize.",
+                });
+            }
+            else
+            {
+                ApplyStatus(cloudSync.Status);
+            }
 
-        if (!IsEnabled && cloudSync.Status.State == CloudSyncState.VaultMismatch)
-        {
-            await LoadMismatchVaultsAsync(ParseProvider());
-        }
+            if (!IsEnabled && setupContinuation.TryGetProvider(out var pendingProvider))
+            {
+                SelectedProvider = ProviderName(pendingProvider);
+                StatusText = $"{SelectedProvider} access is approved. Enter your vault passphrase and select Connect to finish.";
+                SyncStatusColor = Color.FromArgb("#5B5CE2");
+            }
 
-        cloudSync.StatusChanged += OnStatusChanged;
-        _isLoading = false;
+            if (!IsEnabled && cloudSync.Status.State == CloudSyncState.VaultMismatch)
+            {
+                HasVaultMismatch = true;
+                try
+                {
+                    await LoadMismatchVaultsAsync(ParseProvider());
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    HasMismatchLoadError = true;
+                    SetErrorMessage(exception, "Unable to load cloud backups. Check your connection and try again.");
+                }
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            SetErrorMessage(exception, "Unable to load cloud sync settings.");
+        }
+        finally
+        {
+            cloudSync.StatusChanged += OnStatusChanged;
+            _isLoading = false;
+        }
     }
 
     public void Unload() => cloudSync.StatusChanged -= OnStatusChanged;
+
+    [RelayCommand]
+    private async Task RetryMismatchVaultsAsync() => await RunCloudBusyAsync(
+        "Checking cloud backups…",
+        async () =>
+        {
+            HasMismatchLoadError = false;
+            ErrorMessage = string.Empty;
+            try
+            {
+                await LoadMismatchVaultsAsync(ParseProvider());
+            }
+            catch
+            {
+                HasMismatchLoadError = true;
+                throw;
+            }
+        },
+        "Unable to load cloud backups. Check your connection and try again.");
 
     partial void OnWifiOnlyChanged(bool value)
     {
@@ -313,6 +359,10 @@ public sealed partial class CloudSyncViewModel(
         try
         {
             var provider = ParseProvider();
+            // Persist only the provider before interactive OAuth starts. If Android
+            // reclaims the process while the provider UI is open, setup can safely
+            // resume after the user unlocks PassCrate again.
+            setupContinuation.WaitForUnlock(provider);
             try
             {
                 await cloudSync.EnableAsync(provider, VaultPassphrase);
@@ -320,14 +370,22 @@ public sealed partial class CloudSyncViewModel(
             }
             catch (CloudSetupRequiresUnlockException)
             {
-                setupContinuation.WaitForUnlock(provider);
                 return;
             }
             catch (CloudVaultMismatchException)
             {
                 setupContinuation.Clear();
                 BusyMessage = "Checking cloud backups…";
-                await LoadMismatchVaultsAsync(provider);
+                HasVaultMismatch = true;
+                try
+                {
+                    await LoadMismatchVaultsAsync(provider);
+                }
+                catch
+                {
+                    HasMismatchLoadError = true;
+                    throw;
+                }
                 return;
             }
             catch
@@ -619,8 +677,12 @@ public sealed partial class CloudSyncViewModel(
                     var preview = await cloudSync.PreviewMergeAsync(request);
                     MergePreviewText =
                         $"Cloud will add {preview.CloudOnlyGroups} groups and {preview.CloudOnlySecrets} secrets. " +
-                        $"This phone keeps {preview.LocalOnlyGroups} local-only groups and {preview.LocalOnlySecrets} local-only secrets. " +
-                        $"For {preview.LocalPreferredCollisions} overlapping items, the version on this phone will be kept.";
+                        $"This phone keeps {preview.LocalOnlyGroups} groups and {preview.LocalOnlySecrets} secrets. " +
+                        $"{preview.CombinedGroups} matching groups will be combined; {preview.DuplicateSecrets} identical secrets will be skipped. " +
+                        $"{preview.SecretsNeedingReview} same-name secrets have different contents and need review. " +
+                        $"{preview.AmbiguousGroupsPreserved} groups and {preview.AmbiguousSecretsPreserved} secrets had more than one phone match, so they stay separate. " +
+                        $"Keeping both adds (duplicate), with a number when needed, to the cloud copy's name. " +
+                        $"For {preview.LocalPreferredCollisions} items already sharing an ID, this phone's version is kept.";
                     HasMergePreview = true;
                 }
                 catch (VaultUnlockException)
@@ -795,6 +857,7 @@ public sealed partial class CloudSyncViewModel(
     private async Task LoadMismatchVaultsAsync(CloudProviderKind provider)
     {
         var vaults = await cloudSync.FindVaultsAsync(provider);
+        HasMismatchLoadError = false;
         MismatchVaults.Clear();
         var ordered = vaults
             .OrderByDescending(vault => vault.LastModifiedAt)
@@ -814,7 +877,14 @@ public sealed partial class CloudSyncViewModel(
         HasSingleMismatchVault = MismatchVaults.Count == 1;
         HasMultipleMismatchVaults = MismatchVaults.Count > 1;
         ResetResolutionSelection();
-        HasVaultMismatch = MismatchVaults.Count > 0;
+        HasVaultMismatch = true;
+        if (MismatchVaults.Count == 0)
+        {
+            HasMismatchLoadError = true;
+            ErrorMessage = "No usable PassCrate cloud backups were found in this account.";
+            return;
+        }
+
         if (HasVaultMismatch)
         {
             StatusText = "This account contains a different PassCrate vault. Choose how you want to continue.";

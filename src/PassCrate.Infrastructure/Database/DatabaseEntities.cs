@@ -74,6 +74,7 @@ internal sealed class CloudSyncConfigurationEntity
     public string HeadSnapshotIdsJson { get; set; } = "[]";
     public long Generation { get; set; }
     public long? LastSuccessfulSyncAtUnixMs { get; set; }
+    public bool IsRecoveryUploadPending { get; set; }
 }
 
 [Table("SyncRecordRevisions")]

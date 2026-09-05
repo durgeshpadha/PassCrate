@@ -62,9 +62,13 @@ public sealed partial class ChangePasswordViewModel(ICloudSyncService cloudSync)
             throw;
         }
         CurrentPassphrase = NewPassphrase = ConfirmNewPassphrase = string.Empty;
+        var cloudRecoveryPending = cloudSync.Status.State == Core.Models.CloudSyncState.Error &&
+            cloudSync.Status.Message.Contains("Cloud recovery will retry", StringComparison.Ordinal);
         await Shell.Current.DisplayAlertAsync(
             "Passphrase changed",
-            "Your vault passphrase now protects local and cloud recovery access.",
+            cloudRecoveryPending
+                ? "Your new passphrase protects this phone. PassCrate will update cloud recovery automatically when the connection is available. Keep your previous passphrase until Cloud Sync shows Ready."
+                : "Your vault passphrase now protects local and cloud recovery access.",
             "Done");
         await Shell.Current.GoToAsync("..");
     }, "Unable to change the vault passphrase.");

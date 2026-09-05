@@ -44,6 +44,63 @@ public sealed class KeyManagementService(
         await InitializeWithDataEncryptionKeyAsync(passphrase, dataEncryptionKey, cancellationToken).ConfigureAwait(false);
     }
 
+    public Task<VaultMetadataV3> PrepareRestoredVaultMetadataAsync(
+        string passphrase,
+        ReadOnlyMemory<byte> dataEncryptionKey,
+        CancellationToken cancellationToken = default)
+    {
+        CredentialPolicy.ValidateVaultPassphrase(passphrase);
+        if (dataEncryptionKey.Length != SecurityDefaults.KeySize)
+            throw new ArgumentException("The recovered data encryption key is invalid.", nameof(dataEncryptionKey));
+
+        var now = DateTimeOffset.UtcNow;
+        var metadata = new VaultMetadataV3
+        {
+            Version = 3,
+            PassphraseKdf = parameterProvider.CreateVaultPassphraseParameters(),
+            DeviceProtectedWrappedDataEncryptionKey = null!,
+            PlatformKeyAlias = DeviceKeyAlias,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        return BuildV3MetadataAsync(metadata, passphrase, dataEncryptionKey, cancellationToken);
+    }
+
+    public async Task<VaultMetadataV3> PreparePassphraseChangeMetadataAsync(
+        string newPassphrase,
+        ReadOnlyMemory<byte> dataEncryptionKey,
+        CancellationToken cancellationToken = default)
+    {
+        CredentialPolicy.ValidateVaultPassphrase(newPassphrase);
+        if (dataEncryptionKey.Length != SecurityDefaults.KeySize)
+            throw new ArgumentException("The data encryption key is invalid.", nameof(dataEncryptionKey));
+        var metadata = await repository.GetVaultMetadataAsync(cancellationToken).ConfigureAwait(false)
+            ?? throw new InvalidOperationException("No local vault exists.");
+        return await BuildV3MetadataAsync(
+            metadata,
+            newPassphrase,
+            dataEncryptionKey,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task ActivateRestoredVaultAsync(
+        ReadOnlyMemory<byte> dataEncryptionKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (dataEncryptionKey.Length != SecurityDefaults.KeySize)
+            throw new ArgumentException("The recovered data encryption key is invalid.", nameof(dataEncryptionKey));
+        session.Unlock(dataEncryptionKey.Span);
+        try
+        {
+            await credentialStore.RemoveAsync(ThrottleCredentialKey, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            // The restored vault is already valid and unlocked. A stale throttle
+            // entry is conservative and can be cleared on a later successful unlock.
+        }
+    }
+
     public async Task UnlockVaultAsync(string passphrase, CancellationToken cancellationToken = default)
     {
         var dek = await UnwrapDataEncryptionKeyAsync(passphrase, cancellationToken).ConfigureAwait(false);
@@ -75,19 +132,9 @@ public sealed class KeyManagementService(
 
     private async Task InitializeWithDataEncryptionKeyAsync(string passphrase, ReadOnlyMemory<byte> dek, CancellationToken cancellationToken)
     {
-        var now = DateTimeOffset.UtcNow;
-        var metadata = new VaultMetadataV3
-        {
-            Version = 3,
-            PassphraseKdf = parameterProvider.CreateVaultPassphraseParameters(),
-            DeviceProtectedWrappedDataEncryptionKey = null!,
-            PlatformKeyAlias = DeviceKeyAlias,
-            CreatedAt = now,
-            UpdatedAt = now,
-        };
-        await CreateV3MetadataAsync(metadata, passphrase, dek, cancellationToken).ConfigureAwait(false);
-        await credentialStore.RemoveAsync(ThrottleCredentialKey, cancellationToken).ConfigureAwait(false);
-        session.Unlock(dek.Span);
+        var metadata = await PrepareRestoredVaultMetadataAsync(passphrase, dek, cancellationToken).ConfigureAwait(false);
+        await repository.SaveVaultMetadataAsync(metadata, cancellationToken).ConfigureAwait(false);
+        await ActivateRestoredVaultAsync(dek, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<byte[]> UnwrapDataEncryptionKeyAsync(string passphrase, CancellationToken cancellationToken)
@@ -126,6 +173,13 @@ public sealed class KeyManagementService(
 
     private async Task<VaultMetadataV3> CreateV3MetadataAsync(VaultMetadataV3 metadata, string passphrase, ReadOnlyMemory<byte> dek, CancellationToken cancellationToken)
     {
+        var updated = await BuildV3MetadataAsync(metadata, passphrase, dek, cancellationToken).ConfigureAwait(false);
+        await repository.SaveVaultMetadataAsync(updated, cancellationToken).ConfigureAwait(false);
+        return updated;
+    }
+
+    private async Task<VaultMetadataV3> BuildV3MetadataAsync(VaultMetadataV3 metadata, string passphrase, ReadOnlyMemory<byte> dek, CancellationToken cancellationToken)
+    {
         var parameters = parameterProvider.CreateVaultPassphraseParameters();
         var kek = await keyDerivation.DeriveKeyAsync(passphrase, parameters.Salt, parameters, cancellationToken).ConfigureAwait(false);
         byte[]? serialized = null;
@@ -140,7 +194,7 @@ public sealed class KeyManagementService(
                     throw new CryptographicException("Device-protected envelope verification failed.");
             }
             finally { CryptographicOperations.ZeroMemory(verification); }
-            var updated = metadata with
+            return metadata with
             {
                 Version = 3,
                 PassphraseKdf = parameters,
@@ -148,8 +202,6 @@ public sealed class KeyManagementService(
                 PlatformKeyAlias = deviceProtected.KeyAlias,
                 UpdatedAt = DateTimeOffset.UtcNow,
             };
-            await repository.SaveVaultMetadataAsync(updated, cancellationToken).ConfigureAwait(false);
-            return updated;
         }
         finally
         {

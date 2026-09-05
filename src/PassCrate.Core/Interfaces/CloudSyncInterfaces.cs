@@ -76,6 +76,15 @@ public interface ISyncRepository
         CloudVaultStateV2 state,
         CloudSyncConfiguration configuration,
         CancellationToken cancellationToken = default);
+    Task ReplaceVaultStateV2Async(
+        VaultMetadataV3 metadata,
+        CloudVaultStateV2 state,
+        CloudSyncConfiguration configuration,
+        CancellationToken cancellationToken = default);
+    Task CommitPassphraseRotationAsync(
+        VaultMetadataV3 metadata,
+        CloudSyncConfiguration configuration,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CloudSnapshotCatalogEntry>> GetSnapshotCatalogAsync(
         CancellationToken cancellationToken = default);
     Task SaveSnapshotCatalogEntryAsync(
@@ -88,6 +97,10 @@ public interface ISyncRepository
 
 public interface IConflictRepository
 {
+    Task<bool> HasConflictAsync(
+        SyncEntityKind entityKind,
+        string recordId,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<SyncConflictSet>> ListConflictsAsync(CancellationToken cancellationToken = default);
     Task<SyncConflictDetails> GetConflictDetailsAsync(
         SyncEntityKind entityKind,

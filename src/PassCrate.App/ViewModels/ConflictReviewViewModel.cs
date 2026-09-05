@@ -12,7 +12,7 @@ public sealed partial class ConflictReviewViewModel(
     IConflictRepository conflicts,
     ISyncRepository syncRepository,
     IVaultService vaultService,
-    ICloudSyncScheduler syncScheduler) : BaseViewModel, ISensitiveStateViewModel
+    ICloudSyncScheduler syncScheduler) : BaseViewModel, ISensitiveStateViewModel, IQueryAttributable
 {
     private static readonly GroupColorOption[] ConflictColorPalette =
     [
@@ -47,6 +47,8 @@ public sealed partial class ConflictReviewViewModel(
     [ObservableProperty] private bool isMergedNameInvalid;
     [ObservableProperty] private bool isMergedIconInvalid;
     [ObservableProperty] private bool isMergedColorInvalid;
+    private SyncEntityKind? requestedEntityKind;
+    private string? requestedRecordId;
 
     public IReadOnlyList<GroupColorOption> ColorOptions { get; } = ConflictColorPalette;
     public string MergedColor => MergedColorOption.Hex;
@@ -96,6 +98,16 @@ public sealed partial class ConflictReviewViewModel(
             }
 
             HasConflicts = ConflictItems.Count > 0;
+            var requested = requestedEntityKind is { } entityKind && !string.IsNullOrWhiteSpace(requestedRecordId)
+                ? ConflictItems.FirstOrDefault(item => item.Conflict.EntityKind == entityKind &&
+                    item.Conflict.RecordId == requestedRecordId)
+                : null;
+            if (requested is not null)
+            {
+                await OpenCoreAsync(requested);
+            }
+            requestedEntityKind = null;
+            requestedRecordId = null;
         }, "Unable to load sync conflicts.");
         IsLoaded = true;
         NotifyPageStateChanged();
@@ -103,6 +115,11 @@ public sealed partial class ConflictReviewViewModel(
 
     [RelayCommand]
     private async Task OpenAsync(ConflictItemViewModel item) => await RunBusyAsync(async () =>
+    {
+        await OpenCoreAsync(item);
+    }, "Unable to open this conflict.");
+
+    private async Task OpenCoreAsync(ConflictItemViewModel item)
     {
         ClearEditor();
         var conflict = item.Conflict;
@@ -116,7 +133,22 @@ public sealed partial class ConflictReviewViewModel(
 
         SelectRevision(Revisions.FirstOrDefault(revision => !revision.IsDeleted) ?? Revisions.FirstOrDefault());
         NotifyReviewStateChanged();
-    }, "Unable to open this conflict.");
+    }
+
+    public void ApplyQueryAttributes(IDictionary<string, object> query)
+    {
+        if (query.TryGetValue("entityKind", out var entityKind) &&
+            int.TryParse(entityKind?.ToString(), out var value) &&
+            Enum.IsDefined((SyncEntityKind)value))
+        {
+            requestedEntityKind = (SyncEntityKind)value;
+        }
+
+        if (query.TryGetValue("recordId", out var recordId))
+        {
+            requestedRecordId = recordId?.ToString();
+        }
+    }
 
     [RelayCommand]
     private void SelectRevision(ConflictRevisionItemViewModel? revision)
@@ -241,7 +273,6 @@ public sealed partial class ConflictReviewViewModel(
             return;
         }
 
-        await vaultService.DeleteGroupAsync(SelectedConflict.Conflict.RecordId, destination.Id);
         await ResolveCoreAsync(new ConflictResolutionRequest
         {
             EntityKind = SyncEntityKind.Group,

@@ -131,6 +131,16 @@
                     </Grid>
                 </Border>
 
+                <Border Style="{StaticResource DangerCard}"
+                        IsVisible="{Binding HasMismatchLoadError}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" />
+                        <Button Text="Try loading backups again"
+                                Command="{Binding RetryMismatchVaultsCommand}"
+                                Style="{StaticResource CompactButton}" />
+                    </VerticalStackLayout>
+                </Border>
+
                 <Border Style="{StaticResource InfoCard}" IsVisible="{Binding HasSingleMismatchVault}">
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="11">
                         <Label Text="☁" Style="{StaticResource AccentIcon}" VerticalTextAlignment="Center" />

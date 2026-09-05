@@ -277,7 +277,7 @@ public static class HelpCatalog
                 "Enter the new passphrase again exactly.",
                 "Tap Change vault passphrase and wait for confirmation.",
             ],
-            "After success, use only the new passphrase for future unlocks and cloud restoration. PassCrate will not fall back to an older cloud recovery version when the former passphrase is entered. Existing groups and secrets remain the same.",
+            "After success, use only the new passphrase for future unlocks and cloud restoration. If the final cloud update is interrupted, PassCrate keeps a safe pending state and retries during normal sync; keep the former passphrase until Cloud Sync reports Ready. Once Ready, PassCrate will not fall back to an older cloud recovery version when the former passphrase is entered. Existing groups and secrets remain the same.",
             "Do not forget the new passphrase. Length is validated first; after it reaches 16 characters, follow any remaining guidance on the highlighted field.",
             Trouble(
                 ("The current passphrase is rejected", "Enter the passphrase that currently unlocks this device, including the same spaces and capitalization."),
@@ -344,6 +344,7 @@ public static class HelpCatalog
                 "Use Reconnect if account authorization has expired.",
                 "Use Disconnect to stop sync while keeping cloud files.",
                 "If the account contains a different PassCrate vault, Step 1 shows all four choices together. No choice is selected automatically. Combine both vaults is recommended because it preserves unique items from both sides.",
+                "Combine matches group names ignoring capitalization and surrounding spaces only when there is one clear phone match. Ambiguous matches stay separate. Identical secrets are kept once, including after a safe retry. Same-name secrets with different fields or notes go to Conflict Review, where you can choose the phone version, choose the cloud version, or keep both. Keeping both adds (duplicate), or a number such as (duplicate 2), to keep every cloud copy's name distinct.",
                 "In Step 2, PassCrate shows only the passphrases, warning, and confirmation needed for your choice. Use Change to return to all four choices without changing either vault.",
                 "Use the cloud vault verifies its passphrase before replacing local data. Use this phone's vault requires the phone-vault passphrase, exact confirmation text, and phone-owner verification. Combine verifies both passphrases, shows a preview, imports unique cloud items, and keeps this phone's version when an item overlaps. Choose another account leaves both vaults unchanged.",
                 "A centered progress message blocks every page action while PassCrate checks, decrypts, combines, uploads, restores, or disconnects. Wait for that message to disappear before continuing.",
@@ -357,7 +358,7 @@ public static class HelpCatalog
                 ("A different vault is already backed up", "Choose one of the four options in Step 1, then review its details in Step 2. PassCrate will not silently overwrite either vault."),
                 ("A cloud action looks unresponsive", "Look for the centered progress message. While it is visible, PassCrate blocks repeated taps and navigation until the current operation finishes."),
                 ("A cloud passphrase is rejected", "Use the passphrase that opens the selected cloud vault; the current phone's passphrase may be different."),
-                ("Conflicts need review", "Open Review conflicts and resolve each item before expecting a clean status.")),
+                ("Conflicts need review", "Open Review conflicts and resolve each item before expecting a clean status. Editing and deleting that secret stay paused until you choose a version.")),
             [HelpScreenIds.CloudSync]),
 
         Topic(

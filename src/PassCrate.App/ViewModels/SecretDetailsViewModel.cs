@@ -9,6 +9,7 @@ namespace PassCrate.App.ViewModels;
 public sealed partial class SecretDetailsViewModel(
     IVaultService vaultService,
     IVaultRepository repository,
+    IConflictRepository conflicts,
     ISensitiveClipboardService sensitiveClipboard) : BaseViewModel, ISensitiveStateViewModel
 {
     public ObservableCollection<SecretFieldItemViewModel> Fields { get; } = [];
@@ -16,10 +17,14 @@ public sealed partial class SecretDetailsViewModel(
     [ObservableProperty] private string secretId = string.Empty;
     [ObservableProperty] private string name = string.Empty;
     [ObservableProperty] private string notes = string.Empty;
+    [ObservableProperty] private bool hasUnresolvedConflict;
+
+    public bool ShowNormalActions => !HasUnresolvedConflict;
 
     public async Task LoadAsync(string id) => await RunBusyAsync(async () =>
     {
         SecretId = id;
+        HasUnresolvedConflict = await conflicts.HasConflictAsync(SyncEntityKind.Secret, id);
         var document = await vaultService.ReadSecretAsync(id);
         Name = document.Name;
         Notes = document.Notes;
@@ -50,8 +55,13 @@ public sealed partial class SecretDetailsViewModel(
     }
 
     [RelayCommand]
-    private Task EditAsync() =>
-        Shell.Current.GoToAsync($"{nameof(Views.SecretEditorPage)}?id={Uri.EscapeDataString(SecretId)}");
+    private Task EditAsync() => HasUnresolvedConflict
+        ? ReviewConflictAsync()
+        : Shell.Current.GoToAsync($"{nameof(Views.SecretEditorPage)}?id={Uri.EscapeDataString(SecretId)}");
+
+    [RelayCommand]
+    private Task ReviewConflictAsync() => Shell.Current.GoToAsync(
+        $"{nameof(Views.ConflictReviewPage)}?entityKind={(int)SyncEntityKind.Secret}&recordId={Uri.EscapeDataString(SecretId)}");
 
     [RelayCommand]
     private async Task DeleteAsync()
@@ -76,6 +86,9 @@ public sealed partial class SecretDetailsViewModel(
         Fields.Clear();
         Notes = string.Empty;
     }
+
+    partial void OnHasUnresolvedConflictChanged(bool value) =>
+        OnPropertyChanged(nameof(ShowNormalActions));
 }
 
 public sealed partial class SecretFieldItemViewModel(SecretField secretField) : ObservableObject

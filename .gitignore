@@ -32,6 +32,7 @@ google-services.json
 # .NET / MAUI build output
 **/bin/
 **/obj/
+**/artifacts/
 TestResults/
 coverage/
 *.apk

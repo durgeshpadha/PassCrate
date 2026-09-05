@@ -238,6 +238,10 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
         cancellationToken.ThrowIfCancellationRequested();
         await _database.RunInTransactionAsync(connection =>
         {
+            if (HasConflict(connection, SyncEntityKind.Secret, secret.Id))
+            {
+                throw new UserInputValidationException("Resolve conflicting versions before editing this secret.");
+            }
             connection.InsertOrReplace(ToEntity(secret));
             MarkChangedV2(connection, SyncEntityKind.Secret, secret.Id, secret, isDeleted: false);
         }).ConfigureAwait(false);
@@ -249,6 +253,10 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
         cancellationToken.ThrowIfCancellationRequested();
         await _database.RunInTransactionAsync(connection =>
         {
+            if (HasConflict(connection, SyncEntityKind.Secret, id))
+            {
+                throw new UserInputValidationException("Resolve conflicting versions before deleting this secret.");
+            }
             connection.Delete<SecretEntity>(id);
             MarkChangedV2<VaultSecret>(
                 connection,
@@ -497,6 +505,120 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
         }).ConfigureAwait(false);
     }
 
+    public async Task ReplaceVaultStateV2Async(
+        VaultMetadataV3 metadata,
+        CloudVaultStateV2 state,
+        CloudSyncConfiguration configuration,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(metadata);
+        ArgumentNullException.ThrowIfNull(state);
+        var recordCount = checked(state.Groups.Count + state.Secrets.Count);
+        if (recordCount > CloudResourceLimits.MaximumRecordsPerSnapshot)
+        {
+            throw new CloudResourceLimitException("The cloud snapshot contains too many records.");
+        }
+
+        var activeSecrets = state.Secrets
+            .Select(envelope => SelectPrimary(envelope.Revisions))
+            .Where(revision => revision is { IsDeleted: false, Payload: not null })
+            .Select(revision => revision!.Payload!)
+            .ToArray();
+        var referencedGroupIds = activeSecrets.Select(secret => secret.GroupId).ToHashSet(StringComparer.Ordinal);
+        var materializedGroups = new Dictionary<string, VaultGroup>(StringComparer.Ordinal);
+        foreach (var envelope in state.Groups)
+        {
+            ValidateEnvelope(envelope, SyncEntityKind.Group);
+            var primary = SelectPrimary(envelope.Revisions);
+            if (primary is { IsDeleted: false, Payload: not null })
+            {
+                materializedGroups[envelope.RecordId] = primary.Payload;
+            }
+            else if (referencedGroupIds.Contains(envelope.RecordId))
+            {
+                var presentation = envelope.Revisions
+                    .Where(revision => revision.IsDeleted && revision.Payload is not null)
+                    .OrderBy(revision => revision.RevisionId, StringComparer.Ordinal)
+                    .Select(revision => revision.Payload)
+                    .FirstOrDefault()
+                    ?? throw new InvalidDataException("A referenced deleted group has no presentation metadata.");
+                materializedGroups[envelope.RecordId] = presentation with
+                {
+                    Name = presentation.Name.EndsWith(" (deletion conflict)", StringComparison.Ordinal)
+                        ? presentation.Name
+                        : $"{presentation.Name} (deletion conflict)",
+                };
+            }
+        }
+
+        foreach (var envelope in state.Secrets)
+        {
+            ValidateEnvelope(envelope, SyncEntityKind.Secret);
+        }
+
+        if (activeSecrets.Any(secret => !materializedGroups.ContainsKey(secret.GroupId)))
+        {
+            throw new InvalidDataException("An active secret references a missing group.");
+        }
+
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        await _database.RunInTransactionAsync(connection =>
+        {
+            connection.DeleteAll<VaultMetadataEntity>();
+            connection.DeleteAll<GroupEntity>();
+            connection.DeleteAll<SecretEntity>();
+            connection.DeleteAll<CloudSyncConfigurationEntity>();
+            connection.DeleteAll<SyncRecordRevisionEntity>();
+            connection.DeleteAll<CloudSnapshotCatalogEntity>();
+            connection.DeleteAll<CloudRestoreJournalEntity>();
+            connection.Insert(ToEntity(metadata));
+            foreach (var group in materializedGroups.Values)
+            {
+                connection.Insert(ToEntity(group));
+            }
+
+            foreach (var secret in activeSecrets)
+            {
+                connection.Insert(ToEntity(secret));
+            }
+
+            foreach (var envelope in state.Groups)
+            {
+                foreach (var revision in envelope.Revisions)
+                {
+                    connection.Insert(ToEntity(envelope.RecordId, SyncEntityKind.Group, revision));
+                }
+            }
+
+            foreach (var envelope in state.Secrets)
+            {
+                foreach (var revision in envelope.Revisions)
+                {
+                    connection.Insert(ToEntity(envelope.RecordId, SyncEntityKind.Secret, revision));
+                }
+            }
+
+            connection.InsertOrReplace(ToEntity(configuration));
+        }).ConfigureAwait(false);
+    }
+
+    public async Task CommitPassphraseRotationAsync(
+        VaultMetadataV3 metadata,
+        CloudSyncConfiguration configuration,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(metadata);
+        ArgumentNullException.ThrowIfNull(configuration);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        await _database.RunInTransactionAsync(connection =>
+        {
+            connection.InsertOrReplace(ToEntity(metadata));
+            connection.InsertOrReplace(ToEntity(configuration));
+        }).ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<CloudSnapshotCatalogEntry>> GetSnapshotCatalogAsync(
         CancellationToken cancellationToken = default)
     {
@@ -568,6 +690,18 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
             .OrderBy(conflict => conflict.EntityKind)
             .ThenBy(conflict => conflict.RecordId, StringComparer.Ordinal)
             .ToArray();
+    }
+
+    public async Task<bool> HasConflictAsync(
+        SyncEntityKind entityKind,
+        string recordId,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var entities = await _database.Table<SyncRecordRevisionEntity>()
+            .Where(entity => entity.EntityKind == (int)entityKind && entity.RecordId == recordId)
+            .ToListAsync().ConfigureAwait(false);
+        return entities.Count > 1 || entities.Any(entity => entity.IsConflict);
     }
 
     public async Task<SyncConflictDetails> GetConflictDetailsAsync(
@@ -646,7 +780,11 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
             {
                 RevisionId = revision.RevisionId,
                 IsDeleted = revision.IsDeleted,
-                DisplayName = revision.IsDeleted ? "Secret (deleted)" : document?.Name ?? "Secret",
+                DisplayName = revision.IsDeleted ? "Secret (deleted)" :
+                    (document?.Name ?? "Secret") + (IsCloudMergeRevision(revision)
+                        ? " — Cloud version"
+                        : entities.Select(ToSecretRevision).Any(IsCloudMergeRevision)
+                            ? " — Phone version" : string.Empty),
                 ChangedAt = revision.IsDeleted ? revision.DeletedAt : revision.Payload?.UpdatedAt,
                 Secret = document,
             });
@@ -765,6 +903,21 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
         UpdatedAt = DateTimeOffset.FromUnixTimeMilliseconds(entity.UpdatedAtUnixMs),
     };
 
+    private static VaultMetadataEntity ToEntity(VaultMetadataV3 metadata) => new()
+    {
+        Id = 1,
+        Version = metadata.Version,
+        PassphraseKdfJson = JsonSerializer.Serialize(metadata.PassphraseKdf, JsonOptions),
+        DeviceProtectedWrappedDekJson =
+            JsonSerializer.Serialize(metadata.DeviceProtectedWrappedDataEncryptionKey, JsonOptions),
+        PlatformKeyAlias = metadata.PlatformKeyAlias,
+        FailedUnlockAttempts = metadata.FailedUnlockAttempts,
+        LastFailedUnlockAtUnixMs = metadata.LastFailedUnlockAt?.ToUnixTimeMilliseconds(),
+        NextUnlockAllowedAtUnixMs = metadata.NextUnlockAllowedAt?.ToUnixTimeMilliseconds(),
+        CreatedAtUnixMs = metadata.CreatedAt.ToUnixTimeMilliseconds(),
+        UpdatedAtUnixMs = metadata.UpdatedAt.ToUnixTimeMilliseconds(),
+    };
+
     private static VaultGroup ToModel(GroupEntity entity) => new()
     {
         Id = entity.Id,
@@ -809,6 +962,7 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
         LastSuccessfulSyncAt = entity.LastSuccessfulSyncAtUnixMs is long lastSync
             ? DateTimeOffset.FromUnixTimeMilliseconds(lastSync)
             : null,
+        IsRecoveryUploadPending = entity.IsRecoveryUploadPending,
     };
 
     private static GroupEntity ToEntity(VaultGroup group) => new()
@@ -850,6 +1004,7 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
         HeadSnapshotIdsJson = JsonSerializer.Serialize(configuration.HeadSnapshotIds, JsonOptions),
         Generation = configuration.Generation,
         LastSuccessfulSyncAtUnixMs = configuration.LastSuccessfulSyncAt?.ToUnixTimeMilliseconds(),
+        IsRecoveryUploadPending = configuration.IsRecoveryUploadPending,
     };
 
     private static SyncRecordRevisionEntity ToEntity<T>(
@@ -985,6 +1140,17 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
         }
     }
 
+    private static bool HasConflict(
+        SQLiteConnection connection,
+        SyncEntityKind kind,
+        string recordId)
+    {
+        var revisions = connection.Table<SyncRecordRevisionEntity>()
+            .Where(entity => entity.EntityKind == (int)kind && entity.RecordId == recordId)
+            .ToArray();
+        return revisions.Length > 1 || revisions.Any(entity => entity.IsConflict);
+    }
+
     private static SyncRecordRevision<T>? SelectPrimary<T>(
         IReadOnlyList<SyncRecordRevision<T>> revisions) =>
         revisions.OrderBy(revision => revision.IsDeleted)
@@ -1078,7 +1244,7 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
         };
     }
 
-    private static void ResolveGroupConflict(
+    private void ResolveGroupConflict(
         SQLiteConnection connection,
         IReadOnlyList<SyncRecordRevisionEntity> entities,
         ConflictResolutionRequest request,
@@ -1111,6 +1277,11 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
             throw new InvalidOperationException("Choose a group revision to keep.");
         }
 
+        if (request.Resolution == ConflictResolutionKind.MoveSecretsAndDeleteGroup)
+        {
+            MoveSecretsForGroupDeletion(connection, request, deviceId);
+        }
+
         if (delete && connection.Table<SecretEntity>().Any(secret => secret.GroupId == request.RecordId))
         {
             throw new UserInputValidationException(
@@ -1138,6 +1309,58 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
         else
         {
             connection.InsertOrReplace(ToEntity(payload!));
+        }
+    }
+
+    private void MoveSecretsForGroupDeletion(
+        SQLiteConnection connection,
+        ConflictResolutionRequest request,
+        string deviceId)
+    {
+        if (string.IsNullOrWhiteSpace(request.DestinationGroupId) ||
+            StringComparer.Ordinal.Equals(request.RecordId, request.DestinationGroupId))
+        {
+            throw new UserInputValidationException("Choose another group for the affected secrets.");
+        }
+
+        if (connection.Find<GroupEntity>(request.DestinationGroupId) is null)
+        {
+            throw new UserInputValidationException("The destination group is no longer available. Choose another group.");
+        }
+
+        if (_encryption is null || _session is null)
+        {
+            throw new VaultLockedException();
+        }
+
+        var destinationGroupId = request.DestinationGroupId;
+        foreach (var entity in connection.Table<SecretEntity>()
+                     .Where(secret => secret.GroupId == request.RecordId)
+                     .ToArray())
+        {
+            var source = ToModel(entity);
+            var plaintext = _session.UseKey(key => _encryption.Decrypt(
+                source.EncryptedPayload,
+                key.Span,
+                CreateSecretAssociatedData(source.Id, source.GroupId, source.EncryptionVersion)));
+            try
+            {
+                var moved = source with
+                {
+                    GroupId = destinationGroupId,
+                    EncryptedPayload = _session.UseKey(key => _encryption.Encrypt(
+                        plaintext,
+                        key.Span,
+                        CreateSecretAssociatedData(source.Id, destinationGroupId, source.EncryptionVersion))),
+                    UpdatedAt = DateTimeOffset.UtcNow,
+                };
+                connection.InsertOrReplace(ToEntity(moved));
+                MarkChangedV2(connection, SyncEntityKind.Secret, moved.Id, moved, isDeleted: false);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(plaintext);
+            }
         }
     }
 
@@ -1212,6 +1435,8 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
         if (request.Resolution == ConflictResolutionKind.KeepBoth)
         {
             KeepAdditionalSecretRevisions(connection, revisions, selected, vector, deviceId);
+            if (payload is not null && selected is not null && IsCloudMergeRevision(selected))
+                payload = NameCloudDuplicate(connection, payload);
         }
 
         var resolved = SyncRevisionFactory.Create(
@@ -1255,6 +1480,7 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
                      revision.RevisionId != selected?.RevisionId))
         {
             var source = alternate.Payload!;
+            if (IsCloudMergeRevision(alternate)) source = NameCloudDuplicate(connection, source);
             var newId = Guid.NewGuid().ToString("N");
             var plaintext = _session.UseKey(key => _encryption.Decrypt(
                 source.EncryptedPayload,
@@ -1286,6 +1512,44 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
             }
         }
     }
+
+    private VaultSecret NameCloudDuplicate(SQLiteConnection connection, VaultSecret source)
+    {
+        if (_encryption is null || _session is null) throw new VaultLockedException();
+        var bytes = _session.UseKey(key => _encryption.Decrypt(source.EncryptedPayload, key.Span,
+            CreateSecretAssociatedData(source.Id, source.GroupId, source.EncryptionVersion)));
+        try
+        {
+            var document = JsonSerializer.Deserialize<SecretDocument>(bytes, JsonOptions)
+                ?? throw new InvalidDataException("Invalid secret document.");
+            var existingNames = connection.Table<SecretEntity>()
+                .Where(item => item.GroupId == source.GroupId)
+                .Select(item => item.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var baseName = document.Name.Trim();
+            var name = $"{baseName} (duplicate)";
+            for (var number = 2; existingNames.Contains(name); number++)
+            {
+                name = $"{baseName} (duplicate {number})";
+            }
+            var renamed = JsonSerializer.SerializeToUtf8Bytes(document with { Name = name }, JsonOptions);
+            try
+            {
+                return source with
+                {
+                    Name = name,
+                    EncryptedPayload = _session.UseKey(key => _encryption.Encrypt(renamed, key.Span,
+                        CreateSecretAssociatedData(source.Id, source.GroupId, source.EncryptionVersion))),
+                };
+            }
+            finally { CryptographicOperations.ZeroMemory(renamed); }
+        }
+        finally { CryptographicOperations.ZeroMemory(bytes); }
+    }
+
+    private static bool IsCloudMergeRevision(SyncRecordRevision<VaultSecret> revision) =>
+        revision.Vector.Entries.Count == 1 &&
+        revision.Vector.Entries.Keys.Single().StartsWith("merge-cloud-", StringComparison.Ordinal);
 
     private static byte[] CreateSecretAssociatedData(string id, string groupId, int version) =>
         System.Text.Encoding.UTF8.GetBytes($"passcrate:secret:{version}:{id}:{groupId}");

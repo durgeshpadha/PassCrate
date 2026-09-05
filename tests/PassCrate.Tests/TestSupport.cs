@@ -147,11 +147,11 @@ internal sealed class TestContext : IAsyncDisposable
     public static async Task<TestContext> CreateAsync()
     {
         var path = Path.Combine(Path.GetTempPath(), $"passcrate-tests-{Guid.NewGuid():N}.db3");
-        var repository = new SqliteVaultRepository(path);
-        await repository.InitializeAsync();
         var kdf = new KeyDerivationService();
         var encryption = new AesGcmEncryptionService();
         var session = new VaultSession();
+        var repository = new SqliteVaultRepository(path, encryption, session);
+        await repository.InitializeAsync();
         var parameters = new TestParameterProvider();
         var credentials = new TestDeviceCredentialStore();
         var deviceProtection = new TestDeviceKeyProtectionService(encryption);

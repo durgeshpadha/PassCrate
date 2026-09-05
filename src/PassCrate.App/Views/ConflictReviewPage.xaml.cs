@@ -16,6 +16,10 @@ public partial class ConflictReviewPage : ContentPage
     {
         base.OnAppearing();
         await _viewModel.LoadAsync();
+        if (_viewModel.SelectedConflict is not null)
+        {
+            ConflictList.ScrollTo(_viewModel.SelectedConflict, position: ScrollToPosition.MakeVisible, animate: false);
+        }
     }
 
     protected override void OnDisappearing()

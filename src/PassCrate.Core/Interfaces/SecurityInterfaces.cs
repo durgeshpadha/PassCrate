@@ -68,6 +68,9 @@ public interface IKeyManagementService
     bool IsUnlocked { get; }
     Task InitializeVaultAsync(string passphrase, CancellationToken cancellationToken = default);
     Task InitializeRestoredVaultAsync(string passphrase, ReadOnlyMemory<byte> dataEncryptionKey, CancellationToken cancellationToken = default);
+    Task<VaultMetadataV3> PrepareRestoredVaultMetadataAsync(string passphrase, ReadOnlyMemory<byte> dataEncryptionKey, CancellationToken cancellationToken = default);
+    Task<VaultMetadataV3> PreparePassphraseChangeMetadataAsync(string newPassphrase, ReadOnlyMemory<byte> dataEncryptionKey, CancellationToken cancellationToken = default);
+    Task ActivateRestoredVaultAsync(ReadOnlyMemory<byte> dataEncryptionKey, CancellationToken cancellationToken = default);
     Task UnlockVaultAsync(string passphrase, CancellationToken cancellationToken = default);
     Task VerifyPassphraseAsync(string passphrase, CancellationToken cancellationToken = default);
     Task ChangePassphraseAsync(string currentPassphrase, string newPassphrase, CancellationToken cancellationToken = default);

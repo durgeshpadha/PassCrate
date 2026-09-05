@@ -28,7 +28,7 @@ Without cloud sync, reinstalling PassCrate, clearing app data, or losing the dev
 
 Before either first-time creation or restore, the user must accept the current offline Terms of Use, Privacy Policy, and data-loss warning. The versioned acceptance receipt is local only, contains no vault data, is not synchronized, and is erased by Reset PassCrate. Declining or cancelling returns to Welcome without changing local or cloud data.
 
-Changing the vault passphrase while cloud sync is enabled uploads new authoritative recovery information. Restore does not fall back to an older snapshot merely because an old passphrase can decrypt it. Normal synchronization keeps the newest ten snapshots, plus any older undominated concurrent heads that are still needed for convergence or conflict review.
+Changing the vault passphrase while cloud sync is enabled first verifies a checkpoint, commits the new local passphrase with a durable pending-cloud marker, and then publishes the new recovery information. If the last publish is interrupted, the next normal sync retries it using the new recovery envelope. Until Cloud Sync reports Ready, keep the former passphrase for emergency recovery from the last completed cloud snapshot. After the new recovery snapshot is verified, restore does not fall back to an older snapshot merely because an old passphrase can decrypt it. Normal synchronization keeps the newest ten snapshots, plus any older undominated concurrent heads that are still needed for convergence or conflict review.
 
 ## A different vault in the selected cloud account
 

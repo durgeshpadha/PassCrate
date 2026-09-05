@@ -62,7 +62,7 @@
                     <Label Text="ITEMS NEEDING YOUR CHOICE" Style="{StaticResource Eyebrow}" />
                     <Label Text="Select an item to compare" Style="{StaticResource Muted}" />
                 </VerticalStackLayout>
-                <CollectionView Grid.Row="1" ItemsSource="{Binding ConflictItems}" SelectionMode="None">
+                <CollectionView x:Name="ConflictList" Grid.Row="1" ItemsSource="{Binding ConflictItems}" SelectionMode="None">
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
                             <Border Style="{StaticResource Card}"
