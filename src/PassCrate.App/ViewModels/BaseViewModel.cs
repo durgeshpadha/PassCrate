@@ -36,12 +36,17 @@ public abstract partial class BaseViewModel : ObservableObject
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            var mapped = ErrorMapper.ToUserMessage(exception);
-            ErrorMessage = string.IsNullOrWhiteSpace(mapped) ? fallbackMessage : mapped;
+            SetErrorMessage(exception, fallbackMessage);
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    protected void SetErrorMessage(Exception exception, string fallbackMessage)
+    {
+        var mapped = ErrorMapper.ToUserMessage(exception);
+        ErrorMessage = string.IsNullOrWhiteSpace(mapped) ? fallbackMessage : mapped;
     }
 }

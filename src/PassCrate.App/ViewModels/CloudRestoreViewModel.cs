@@ -11,10 +11,12 @@ public sealed partial class CloudRestoreViewModel(
     ICloudSyncService cloudSync,
     ICloudSyncScheduler scheduler) : BaseViewModel, ISensitiveStateViewModel
 {
-    public IReadOnlyList<string> ProviderOptions { get; } = ["Google Drive", "Dropbox"];
     public ObservableCollection<CloudVaultChoice> AvailableVaults { get; } = [];
 
-    [ObservableProperty] private string selectedProvider = "Google Drive";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGoogleDriveSelected))]
+    [NotifyPropertyChangedFor(nameof(IsDropboxSelected))]
+    private string selectedProvider = "Google Drive";
     [ObservableProperty] private CloudVaultChoice? selectedVault;
     [ObservableProperty] private string vaultPassphrase = string.Empty;
     [ObservableProperty] private string discoveryStatus = "Connect Google Drive or Dropbox to find your backup.";
@@ -27,11 +29,16 @@ public sealed partial class CloudRestoreViewModel(
     [ObservableProperty] private bool hasNoBackups;
 
     public bool HasNotSearched => !HasSearched;
+    public bool IsGoogleDriveSelected => SelectedProvider == "Google Drive";
+    public bool IsDropboxSelected => SelectedProvider == "Dropbox";
 
     partial void OnSelectedProviderChanged(string value)
     {
         ResetDiscoveryState();
     }
+
+    [RelayCommand]
+    private void SelectProvider(string provider) => SelectedProvider = provider;
 
     [RelayCommand]
     private async Task FindVaultsAsync() => await RunBusyAsync(async () =>
@@ -41,11 +48,16 @@ public sealed partial class CloudRestoreViewModel(
         var provider = ParseProvider();
         var vaults = await cloudSync.FindVaultsAsync(provider);
         AvailableVaults.Clear();
-        foreach (var vault in vaults)
+        var orderedVaults = vaults
+            .OrderByDescending(vault => vault.LastModifiedAt)
+            .ThenByDescending(vault => vault.LatestGeneration)
+            .ToArray();
+        for (var index = 0; index < orderedVaults.Length; index++)
         {
-            AvailableVaults.Add(new CloudVaultChoice(
-                vault.VaultId,
-                $"Backup {vault.VaultId[..Math.Min(8, vault.VaultId.Length)]} · {vault.SnapshotCount} saved version(s)"));
+            AvailableVaults.Add(CreateVaultChoice(
+                orderedVaults[index],
+                index,
+                orderedVaults.Length));
         }
 
         SelectedVault = AvailableVaults.FirstOrDefault();
@@ -54,7 +66,7 @@ public sealed partial class CloudRestoreViewModel(
         HasNoBackups = !HasAvailableVaults;
         DiscoveryStatus = AvailableVaults.Count == 0
             ? "No PassCrate backup was found in this cloud account."
-            : "Select the backup you want to restore.";
+            : "Select a backup. PassCrate will restore its newest valid saved state.";
     }, "Unable to find cloud backups.");
 
     [RelayCommand]
@@ -109,9 +121,17 @@ public sealed partial class CloudRestoreViewModel(
 
     partial void OnSelectedVaultChanged(CloudVaultChoice? value)
     {
+        foreach (var vault in AvailableVaults)
+        {
+            vault.IsSelected = vault == value;
+        }
+
         IsVaultSelectionInvalid = false;
         ErrorMessage = string.Empty;
     }
+
+    [RelayCommand]
+    private void SelectVault(CloudVaultChoice vault) => SelectedVault = vault;
 
     partial void OnVaultPassphraseChanged(string value)
     {
@@ -134,6 +154,49 @@ public sealed partial class CloudRestoreViewModel(
         HasNoBackups = false;
         DiscoveryStatus = "Choose a cloud service, then tap Connect and find backups.";
     }
+
+    private static CloudVaultChoice CreateVaultChoice(
+        CloudVaultDescriptor vault,
+        int index,
+        int totalVaults)
+    {
+        var lastModified = vault.LastModifiedAt?.ToLocalTime();
+        var title = totalVaults == 1
+            ? "Your PassCrate backup"
+            : index == 0
+                ? "Most recent backup"
+                : lastModified is { } timestamp
+                    ? $"Backup from {timestamp:d}"
+                    : $"Older backup {index}";
+        var updatedText = lastModified is { } updatedAt
+            ? $"Last updated {updatedAt:g}"
+            : "Last updated time unavailable";
+        var providerName = vault.Provider == CloudProviderKind.Dropbox ? "Dropbox" : "Google Drive";
+        var isRecommended = index == 0;
+        return new CloudVaultChoice(
+            vault.VaultId,
+            title,
+            updatedText,
+            providerName,
+            isRecommended);
+    }
 }
 
-public sealed record CloudVaultChoice(string VaultId, string DisplayName);
+public sealed partial class CloudVaultChoice(
+    string vaultId,
+    string title,
+    string updatedText,
+    string providerName,
+    bool isRecommended) : ObservableObject
+{
+    public string VaultId { get; } = vaultId;
+    public string Title { get; } = title;
+    public string UpdatedText { get; } = updatedText;
+    public string ProviderName { get; } = providerName;
+    public bool IsRecommended { get; } = isRecommended;
+    public string AccessibilityDescription => IsRecommended
+        ? $"{Title}, recommended. {UpdatedText}. {ProviderName}. Double tap to select."
+        : $"{Title}. {UpdatedText}. {ProviderName}. Double tap to select.";
+
+    [ObservableProperty] private bool isSelected;
+}

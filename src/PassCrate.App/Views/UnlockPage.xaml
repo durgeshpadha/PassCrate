@@ -30,6 +30,13 @@
             <Label Text="Enter your vault passphrase to decrypt your secrets on this device."
                    Style="{StaticResource PageLead}"
                    HorizontalTextAlignment="Center" />
+            <Border Style="{StaticResource InfoCard}"
+                    IsVisible="{Binding IsCloudSetupPending}"
+                    SemanticProperties.Description="Cloud connection is waiting for vault unlock">
+                <Label Text="{Binding CloudSetupMessage}"
+                       Style="{StaticResource Muted}"
+                       HorizontalTextAlignment="Center" />
+            </Border>
             <Border Style="{StaticResource FieldBorder}" Margin="0,10,0,0">
                 <Border.Triggers>
                     <DataTrigger TargetType="Border" Binding="{Binding IsPassphraseInvalid}" Value="True">

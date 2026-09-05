@@ -41,6 +41,7 @@ public sealed record HelpTopic(
 public static class HelpTopicIds
 {
     public const string Welcome = "welcome";
+    public const string LegalAcceptance = "legal-acceptance";
     public const string CreateVault = "create-vault";
     public const string Unlock = "unlock";
     public const string UnlockRecovery = "unlock-recovery";
@@ -63,6 +64,8 @@ public static class HelpTopicIds
 public static class HelpScreenIds
 {
     public const string Welcome = "WelcomePage";
+    public const string LegalAcceptance = "LegalAcceptancePage";
+    public const string LegalDocument = "LegalDocumentPage";
     public const string Registration = "RegistrationPage";
     public const string Unlock = "UnlockPage";
     public const string Dashboard = "DashboardPage";
@@ -81,6 +84,8 @@ public static class HelpScreenIds
     public static IReadOnlyList<string> All { get; } =
     [
         Welcome,
+        LegalAcceptance,
+        LegalDocument,
         Registration,
         Unlock,
         Dashboard,

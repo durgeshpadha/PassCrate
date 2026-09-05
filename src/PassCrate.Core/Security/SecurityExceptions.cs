@@ -27,6 +27,9 @@ public sealed class GroupNotEmptyException() : Exception("Move the secrets in th
 
 public sealed class CloudAuthorizationRequiredException() : Exception("Reconnect your cloud provider to continue syncing.");
 
+public sealed class CloudSetupRequiresUnlockException() : Exception(
+    "Cloud access was approved. Unlock your vault to finish connecting cloud sync.");
+
 public sealed class CloudProviderConfigurationException(string message) : Exception(message);
 
 public sealed class CloudVaultMismatchException() : Exception(

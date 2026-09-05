@@ -59,6 +59,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IBiometricUnlockService, BiometricUnlockService>();
         builder.Services.AddSingleton<IAutoLockService, AutoLockService>();
         builder.Services.AddSingleton<IInstallationStateStore, InstallationStateStore>();
+        builder.Services.AddSingleton<ILegalAcceptanceStore, LegalAcceptanceStore>();
         builder.Services.AddSingleton<IApplicationResetService, ApplicationResetService>();
         builder.Services.AddSingleton<IFirstLaunchSecurityService, FirstLaunchSecurityService>();
         builder.Services.AddSingleton(new HttpClient { Timeout = TimeSpan.FromSeconds(45) });
@@ -78,6 +79,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<ICloudStorageProvider, DropboxCloudStorageProvider>();
         builder.Services.AddSingleton<ICloudStorageProviderFactory, CloudStorageProviderFactory>();
         builder.Services.AddSingleton<ICloudSyncService, CloudSyncService>();
+        builder.Services.AddSingleton<CloudSyncSetupContinuation>();
         builder.Services.AddSingleton<CloudSyncCoordinator>();
         builder.Services.AddSingleton<ICloudSyncScheduler>(services => services.GetRequiredService<CloudSyncCoordinator>());
 
@@ -98,6 +100,7 @@ public static class MauiProgram
         builder.Services.AddTransient<CloudRestoreViewModel>();
         builder.Services.AddTransient<ConflictReviewViewModel>();
         builder.Services.AddTransient<HelpViewModel>();
+        builder.Services.AddTransient<LegalAcceptanceViewModel>();
 
         builder.Services.AddTransient<WelcomePage>();
         builder.Services.AddTransient<RegistrationPage>();
@@ -115,6 +118,8 @@ public static class MauiProgram
         builder.Services.AddTransient<CloudRestorePage>();
         builder.Services.AddTransient<ConflictReviewPage>();
         builder.Services.AddTransient<HelpPage>();
+        builder.Services.AddTransient<LegalAcceptancePage>();
+        builder.Services.AddTransient<LegalDocumentPage>();
 
 #if DEBUG
         builder.Logging.AddDebug();

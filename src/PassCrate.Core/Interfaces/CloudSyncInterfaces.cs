@@ -68,6 +68,7 @@ public interface ISyncRepository
     Task InitializeRecordVectorsAsync(string deviceId, CancellationToken cancellationToken = default);
     Task BeginRestoreAsync(CancellationToken cancellationToken = default);
     Task CompleteRestoreAsync(CancellationToken cancellationToken = default);
+    Task ClearVaultForReplacementAsync(CancellationToken cancellationToken = default);
     Task<CloudVaultStateV2> ExportStateV2Async(
         string deviceId,
         CancellationToken cancellationToken = default);
@@ -107,6 +108,12 @@ public interface ICloudSyncService
     Task ChangePassphraseAsync(string currentPassphrase, string newPassphrase, CancellationToken cancellationToken = default);
     Task<CloudSyncResult> SynchronizeAsync(CancellationToken cancellationToken = default);
     Task RestoreAsync(CloudRestoreRequest request, CancellationToken cancellationToken = default);
+    Task<CloudVaultContentsSummary> ValidateCloudVaultAsync(CloudRestoreRequest request, CancellationToken cancellationToken = default);
+    Task RestoreReplacingLocalAsync(CloudRestoreRequest request, CancellationToken cancellationToken = default);
+    Task ReplaceCloudVaultAsync(CloudVaultReplacementRequest request, CancellationToken cancellationToken = default);
+    Task<CloudVaultMergePreview> PreviewMergeAsync(CloudVaultMergeRequest request, CancellationToken cancellationToken = default);
+    Task<CloudVaultMergeResult> MergeDifferentVaultAsync(CloudVaultMergeRequest request, CancellationToken cancellationToken = default);
+    Task SwitchCloudAccountAsync(CloudProviderKind provider, CancellationToken cancellationToken = default);
     Task SetWifiOnlyAsync(bool wifiOnly, CancellationToken cancellationToken = default);
     Task DisconnectAsync(CancellationToken cancellationToken = default);
     Task ReconnectAsync(CancellationToken cancellationToken = default);

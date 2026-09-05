@@ -20,6 +20,8 @@ public sealed class NavigationSecurityPolicyTests
     [InlineData("//unlock")]
     [InlineData("HelpPage")]
     [InlineData("HelpPage?topic=unlock-recovery")]
+    [InlineData("LegalAcceptancePage?next=restore")]
+    [InlineData("LegalDocumentPage?document=privacy")]
     [InlineData("CloudRestorePage")]
     [InlineData("ResetPage")]
     public void PublicAndRecoveryRoutesRemainAvailableWhileLocked(string route)

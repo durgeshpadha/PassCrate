@@ -19,6 +19,7 @@ public enum CloudSyncState
     QuotaLimited,
     RateLimited,
     CloudCleanupRequired,
+    VaultMismatch,
     Error,
 }
 
@@ -185,6 +186,7 @@ public sealed record SyncConflictSet
 {
     public required SyncEntityKind EntityKind { get; init; }
     public required string RecordId { get; init; }
+    public string DisplayName { get; init; } = string.Empty;
     public IReadOnlyList<string> RevisionIds { get; init; } = [];
     public bool IncludesDeletion { get; init; }
 }
@@ -206,6 +208,7 @@ public sealed record SyncConflictRevisionView
     public required string RevisionId { get; init; }
     public bool IsDeleted { get; init; }
     public required string DisplayName { get; init; }
+    public DateTimeOffset? ChangedAt { get; init; }
     public VaultGroup? Group { get; init; }
     public SecretDocument? Secret { get; init; }
 }
@@ -241,7 +244,8 @@ public sealed record CloudVaultDescriptor(
     string VaultId,
     long LatestGeneration,
     int SnapshotCount,
-    CloudProviderKind Provider);
+    CloudProviderKind Provider,
+    DateTimeOffset? LastModifiedAt);
 
 public sealed record CloudSyncResult(
     string SnapshotId,
@@ -254,3 +258,37 @@ public sealed record CloudRestoreRequest
     public required string VaultId { get; init; }
     public required string VaultPassphrase { get; init; }
 }
+
+public sealed record CloudVaultContentsSummary(
+    int GroupCount,
+    int SecretCount);
+
+public sealed record CloudVaultReplacementRequest
+{
+    public required CloudProviderKind Provider { get; init; }
+    public required string CloudVaultId { get; init; }
+    public required string LocalVaultPassphrase { get; init; }
+    public required string TypedConfirmation { get; init; }
+}
+
+public sealed record CloudVaultMergeRequest
+{
+    public required CloudProviderKind Provider { get; init; }
+    public required string CloudVaultId { get; init; }
+    public required string CloudVaultPassphrase { get; init; }
+    public required string LocalVaultPassphrase { get; init; }
+}
+
+public sealed record CloudVaultMergePreview(
+    int LocalOnlyGroups,
+    int CloudOnlyGroups,
+    int LocalOnlySecrets,
+    int CloudOnlySecrets,
+    int LocalPreferredCollisions)
+{
+    public int ImportedItems => checked(CloudOnlyGroups + CloudOnlySecrets);
+}
+
+public sealed record CloudVaultMergeResult(
+    CloudVaultMergePreview Preview,
+    CloudSyncResult SyncResult);

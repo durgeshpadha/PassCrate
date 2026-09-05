@@ -4,7 +4,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              BackgroundColor="{AppThemeBinding Light={StaticResource LightBackground}, Dark={StaticResource DarkBackground}}"
              Title="Cloud Sync">
-    <ScrollView>
+    <Shell.BackButtonBehavior>
+        <BackButtonBehavior Command="{Binding NavigateBackCommand}" IsEnabled="{Binding IsNotBusy}" />
+    </Shell.BackButtonBehavior>
+    <Grid RowDefinitions="*,Auto">
+    <ScrollView x:Name="PageScrollView" Grid.Row="0" IsEnabled="{Binding IsNotBusy}">
         <VerticalStackLayout Style="{StaticResource PageContent}" MaximumWidthRequest="680">
             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
                 <Border Style="{StaticResource IconTile}" WidthRequest="56" HeightRequest="56" StrokeShape="RoundRectangle 18">
@@ -16,9 +20,10 @@
                 </VerticalStackLayout>
             </Grid>
             <Label Text="Keep a protected copy of your vault in Google Drive or Dropbox. Everything is encrypted before it leaves this device."
-                   Style="{StaticResource PageLead}" />
+                   Style="{StaticResource PageLead}"
+                   IsVisible="{Binding ShowNormalCloudContent}" />
 
-            <Border Style="{StaticResource Card}">
+            <Border Style="{StaticResource Card}" IsVisible="{Binding ShowNormalCloudContent}">
                 <VerticalStackLayout Spacing="10">
                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
                         <Label Text="●" TextColor="{Binding SyncStatusColor}" VerticalTextAlignment="Center" />
@@ -36,12 +41,43 @@
                 </VerticalStackLayout>
             </Border>
 
-            <VerticalStackLayout IsVisible="{Binding IsDisabled}" Spacing="12">
+            <VerticalStackLayout IsVisible="{Binding ShowStandardSetup}" Spacing="12">
                 <Label Text="ENABLE SYNC" Style="{StaticResource Eyebrow}" Margin="0,6,0,0" />
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="12">
                         <Label Text="CLOUD SERVICE" Style="{StaticResource FieldLabel}" />
-                        <Border Style="{StaticResource FieldBorder}"><Picker ItemsSource="{Binding ProviderOptions}" SelectedItem="{Binding SelectedProvider}" /></Border>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <Border Style="{StaticResource Card}" Padding="12" MinimumHeightRequest="58" SemanticProperties.Description="Google Drive cloud service">
+                                <Border.Triggers>
+                                    <DataTrigger TargetType="Border" Binding="{Binding IsGoogleDriveSelected}" Value="True">
+                                        <Setter Property="Stroke" Value="{StaticResource Primary}" />
+                                        <Setter Property="StrokeThickness" Value="2" />
+                                    </DataTrigger>
+                                </Border.Triggers>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding SelectProviderCommand}" CommandParameter="Google Drive" />
+                                </Border.GestureRecognizers>
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                    <Label Text="Google Drive" FontFamily="OpenSansSemibold" VerticalTextAlignment="Center" />
+                                    <Label Grid.Column="1" Text="✓" TextColor="{StaticResource Primary}" IsVisible="{Binding IsGoogleDriveSelected}" VerticalTextAlignment="Center" />
+                                </Grid>
+                            </Border>
+                            <Border Grid.Column="1" Style="{StaticResource Card}" Padding="12" MinimumHeightRequest="58" SemanticProperties.Description="Dropbox cloud service">
+                                <Border.Triggers>
+                                    <DataTrigger TargetType="Border" Binding="{Binding IsDropboxSelected}" Value="True">
+                                        <Setter Property="Stroke" Value="{StaticResource Primary}" />
+                                        <Setter Property="StrokeThickness" Value="2" />
+                                    </DataTrigger>
+                                </Border.Triggers>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding SelectProviderCommand}" CommandParameter="Dropbox" />
+                                </Border.GestureRecognizers>
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                    <Label Text="Dropbox" FontFamily="OpenSansSemibold" VerticalTextAlignment="Center" />
+                                    <Label Grid.Column="1" Text="✓" TextColor="{StaticResource Primary}" IsVisible="{Binding IsDropboxSelected}" VerticalTextAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </Grid>
                         <Label Text="VAULT PASSPHRASE" Style="{StaticResource FieldLabel}" />
                         <Label Text="Re-enter your passphrase to protect the cloud backup. PassCrate never saves it." Style="{StaticResource Muted}" />
                         <Border Style="{StaticResource FieldBorder}">
@@ -81,6 +117,254 @@
                            VerticalTextAlignment="Center" />
                 </HorizontalStackLayout>
                 <Button Text="Connect and turn on cloud sync" Command="{Binding EnableCommand}" IsEnabled="{Binding IsNotBusy}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout IsVisible="{Binding HasVaultMismatch}" Spacing="14">
+                <Border Style="{StaticResource WarningCard}">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                        <Label Text="!" TextColor="{StaticResource Warning}" FontFamily="OpenSansSemibold" FontSize="20" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="4">
+                            <Label Text="Another vault is already backed up here" FontFamily="OpenSansSemibold" FontSize="17" />
+                            <Label Text="Your current phone vault and the selected cloud vault are different. PassCrate will not overwrite either one until you choose what should happen."
+                                   Style="{StaticResource Muted}" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource InfoCard}" IsVisible="{Binding HasSingleMismatchVault}">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="11">
+                        <Label Text="☁" Style="{StaticResource AccentIcon}" VerticalTextAlignment="Center" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="2">
+                            <Label Text="{Binding SelectedMismatchVaultTitle}" FontFamily="OpenSansSemibold" />
+                            <Label Text="{Binding SelectedMismatchVaultDetails}" Style="{StaticResource Muted}" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+
+                <VerticalStackLayout Spacing="6" IsVisible="{Binding HasMultipleMismatchVaults}">
+                    <Label Text="CLOUD BACKUP" Style="{StaticResource FieldLabel}" />
+                    <Border Style="{StaticResource FieldBorder}">
+                        <Picker Title="Choose a cloud backup"
+                                ItemsSource="{Binding MismatchVaults}"
+                                ItemDisplayBinding="{Binding Title}"
+                                SelectedItem="{Binding SelectedMismatchVault}"
+                                SemanticProperties.Description="Choose which existing cloud vault to use" />
+                    </Border>
+                    <Label Text="{Binding SelectedMismatchVaultDetails}" Style="{StaticResource Muted}" />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout x:Name="ResolutionChoices"
+                                     IsVisible="{Binding IsChoosingResolution}"
+                                     Spacing="10">
+                    <VerticalStackLayout Spacing="3">
+                        <Label Text="STEP 1 OF 2" Style="{StaticResource AccentEyebrow}" />
+                        <Label Text="Choose what you want to keep (1 of 4)"
+                               FontFamily="OpenSansSemibold"
+                               FontSize="20"
+                               SemanticProperties.HeadingLevel="Level2" />
+                        <Label Text="Select one option. Nothing changes until you review and confirm the next step."
+                               Style="{StaticResource Muted}" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding ResolutionOptions}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource Card}"
+                                        Padding="13,11"
+                                        MinimumHeightRequest="68"
+                                        SemanticProperties.Description="{Binding AccessibilityDescription}">
+                                    <Border.Triggers>
+                                        <DataTrigger TargetType="Border" Binding="{Binding IsDanger}" Value="True">
+                                            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource LightDangerSurface}, Dark={StaticResource DarkDangerSurface}}" />
+                                        </DataTrigger>
+                                        <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                                            <Setter Property="Stroke" Value="{StaticResource Primary}" />
+                                            <Setter Property="StrokeThickness" Value="2" />
+                                        </DataTrigger>
+                                    </Border.Triggers>
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.SelectResolutionCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">
+                                        <Label Text="{Binding SelectionGlyph}"
+                                               FontSize="20"
+                                               TextColor="{StaticResource Primary}"
+                                               VerticalTextAlignment="Center" />
+                                        <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                            <Label Text="{Binding Title}" FontFamily="OpenSansSemibold" FontSize="16" />
+                                            <Label Text="{Binding Summary}" Style="{StaticResource Muted}" FontSize="12" />
+                                        </VerticalStackLayout>
+                                        <Border Grid.Column="2"
+                                                IsVisible="{Binding IsRecommended}"
+                                                StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 8"
+                                                Padding="7,3"
+                                                VerticalOptions="Start"
+                                                BackgroundColor="{AppThemeBinding Light={StaticResource LightInfoSurface}, Dark={StaticResource DarkInfoSurface}}">
+                                            <Label Text="RECOMMENDED" Style="{StaticResource AccentEyebrow}" FontSize="9" />
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+
+                    <Button Text="Need help choosing?"
+                            Command="{Binding HelpCommand}"
+                            Style="{StaticResource TertiaryButton}"
+                            SemanticProperties.Description="Open help for choosing between different phone and cloud vaults" />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout x:Name="ResolutionDetails"
+                                     IsVisible="{Binding IsCompletingResolution}"
+                                     Spacing="8">
+                    <Label Text="STEP 2 OF 2" Style="{StaticResource AccentEyebrow}" />
+                    <Border Style="{StaticResource InfoCard}">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <VerticalStackLayout Spacing="3">
+                                <Label Text="{Binding SelectedResolutionTitle}"
+                                       FontFamily="OpenSansSemibold"
+                                       FontSize="19"
+                                       SemanticProperties.HeadingLevel="Level2" />
+                                <Label Text="{Binding SelectedResolutionSummary}" Style="{StaticResource Muted}" />
+                            </VerticalStackLayout>
+                            <Button Grid.Column="1"
+                                    Text="Change"
+                                    Command="{Binding ChangeResolutionChoiceCommand}"
+                                    Style="{StaticResource CompactButton}"
+                                    VerticalOptions="Start"
+                                    SemanticProperties.Description="Return to the four vault choices" />
+                        </Grid>
+                    </Border>
+                </VerticalStackLayout>
+
+                <Border Style="{StaticResource DangerCard}" IsVisible="{Binding IsUseCloudResolution}">
+                    <VerticalStackLayout Spacing="11">
+                        <Label Text="Use the cloud vault" FontFamily="OpenSansSemibold" FontSize="17" />
+                        <Label Text="PassCrate verifies and decrypts the backup before asking for final confirmation. The current vault on this phone will then be permanently replaced."
+                               Style="{StaticResource Muted}" />
+                        <Label Text="EXISTING CLOUD VAULT PASSPHRASE" Style="{StaticResource FieldLabel}" />
+                        <Border Style="{StaticResource FieldBorder}">
+                            <Border.Triggers>
+                                <DataTrigger TargetType="Border" Binding="{Binding IsRestoreCloudPassphraseInvalid}" Value="True">
+                                    <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                    <Setter Property="StrokeThickness" Value="2" />
+                                </DataTrigger>
+                            </Border.Triggers>
+                            <Entry Text="{Binding RestoreCloudPassphrase}" Placeholder="Cloud vault passphrase" IsPassword="True" />
+                        </Border>
+                        <Label Text="{Binding ErrorMessage}"
+                               Style="{StaticResource ErrorText}"
+                               IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+                        <Button Text="Verify and use cloud vault"
+                                Command="{Binding RestoreExistingCloudVaultCommand}"
+                                IsEnabled="{Binding IsNotBusy}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource DangerCard}" IsVisible="{Binding IsUsePhoneResolution}">
+                    <VerticalStackLayout Spacing="11">
+                        <Label Text="Use this phone's vault" FontFamily="OpenSansSemibold" FontSize="17" />
+                        <Label Text="PassCrate uploads and verifies this phone's vault before permanently deleting the selected old cloud vault."
+                               Style="{StaticResource Muted}" />
+                        <Label Text="CURRENT VAULT PASSPHRASE" Style="{StaticResource FieldLabel}" />
+                        <Border Style="{StaticResource FieldBorder}">
+                            <Border.Triggers>
+                                <DataTrigger TargetType="Border" Binding="{Binding IsReplaceLocalPassphraseInvalid}" Value="True">
+                                    <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                    <Setter Property="StrokeThickness" Value="2" />
+                                </DataTrigger>
+                            </Border.Triggers>
+                            <Entry Text="{Binding ReplaceLocalPassphrase}" Placeholder="Current vault passphrase" IsPassword="True" />
+                        </Border>
+                        <Label Text="TYPE REPLACE CLOUD BACKUP" Style="{StaticResource FieldLabel}" />
+                        <Border Style="{StaticResource FieldBorder}">
+                            <Border.Triggers>
+                                <DataTrigger TargetType="Border" Binding="{Binding IsReplaceConfirmationInvalid}" Value="True">
+                                    <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                    <Setter Property="StrokeThickness" Value="2" />
+                                </DataTrigger>
+                            </Border.Triggers>
+                            <Entry Text="{Binding ReplaceConfirmation}" Placeholder="REPLACE CLOUD BACKUP" />
+                        </Border>
+                        <Label Text="{Binding ErrorMessage}"
+                               Style="{StaticResource ErrorText}"
+                               IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+                        <Button Text="Replace selected cloud backup"
+                                Command="{Binding ReplaceCloudBackupCommand}"
+                                Style="{StaticResource DangerButton}"
+                                IsEnabled="{Binding IsNotBusy}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource Card}" IsVisible="{Binding IsCombineResolution}">
+                    <VerticalStackLayout Spacing="11">
+                        <Label Text="Combine both vaults" FontFamily="OpenSansSemibold" FontSize="17" />
+                        <Label Text="Check both passphrases and preview what will be combined. No data changes during the preview."
+                               Style="{StaticResource Muted}" />
+                        <Label Text="EXISTING CLOUD VAULT PASSPHRASE" Style="{StaticResource FieldLabel}" />
+                        <Border Style="{StaticResource FieldBorder}">
+                            <Border.Triggers>
+                                <DataTrigger TargetType="Border" Binding="{Binding IsMergeCloudPassphraseInvalid}" Value="True">
+                                    <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                    <Setter Property="StrokeThickness" Value="2" />
+                                </DataTrigger>
+                            </Border.Triggers>
+                            <Entry Text="{Binding MergeCloudPassphrase}" Placeholder="Cloud vault passphrase" IsPassword="True" />
+                        </Border>
+                        <Label Text="CURRENT VAULT PASSPHRASE" Style="{StaticResource FieldLabel}" />
+                        <Border Style="{StaticResource FieldBorder}">
+                            <Border.Triggers>
+                                <DataTrigger TargetType="Border" Binding="{Binding IsMergeLocalPassphraseInvalid}" Value="True">
+                                    <Setter Property="Stroke" Value="{StaticResource Danger}" />
+                                    <Setter Property="StrokeThickness" Value="2" />
+                                </DataTrigger>
+                            </Border.Triggers>
+                            <Entry Text="{Binding MergeLocalPassphrase}" Placeholder="Current vault passphrase" IsPassword="True" />
+                        </Border>
+                        <Label Text="{Binding ErrorMessage}"
+                               Style="{StaticResource ErrorText}"
+                               IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+                        <Button Text="Check and preview"
+                                Command="{Binding PreviewMergeCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                IsEnabled="{Binding IsNotBusy}">
+                            <Button.Triggers>
+                                <DataTrigger TargetType="Button" Binding="{Binding HasMergePreview}" Value="True">
+                                    <Setter Property="IsVisible" Value="False" />
+                                </DataTrigger>
+                            </Button.Triggers>
+                        </Button>
+                        <Border Style="{StaticResource SuccessCard}" IsVisible="{Binding HasMergePreview}">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="Ready to combine" FontFamily="OpenSansSemibold" />
+                                <Label Text="{Binding MergePreviewText}" Style="{StaticResource Muted}" />
+                            </VerticalStackLayout>
+                        </Border>
+                        <Button Text="Combine both vaults"
+                                Command="{Binding MergeCloudVaultCommand}"
+                                IsVisible="{Binding HasMergePreview}"
+                                IsEnabled="{Binding IsNotBusy}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource Card}" IsVisible="{Binding IsAnotherAccountResolution}">
+                    <VerticalStackLayout Spacing="9">
+                        <Label Text="Choose another cloud account" FontFamily="OpenSansSemibold" FontSize="17" />
+                        <Label Text="This account will be disconnected from this phone. Your phone vault and encrypted cloud vault will not be deleted or changed."
+                               Style="{StaticResource Muted}" />
+                        <Label Text="{Binding ErrorMessage}"
+                               Style="{StaticResource ErrorText}"
+                               IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyConverter}}" />
+                        <Button Text="Disconnect and choose another account"
+                                Command="{Binding UseAnotherCloudAccountCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                IsEnabled="{Binding IsNotBusy}" />
+                    </VerticalStackLayout>
+                </Border>
+
             </VerticalStackLayout>
 
             <VerticalStackLayout IsVisible="{Binding IsEnabled}" Spacing="12">
@@ -148,4 +432,49 @@
 
         </VerticalStackLayout>
     </ScrollView>
+
+    <Border Grid.Row="1"
+            IsVisible="{Binding IsChoosingResolution}"
+            IsEnabled="{Binding IsNotBusy}"
+            Stroke="{AppThemeBinding Light={StaticResource LightBorder}, Dark={StaticResource DarkBorder}}"
+            BackgroundColor="{AppThemeBinding Light={StaticResource LightSurface}, Dark={StaticResource DarkSurface}}"
+            Padding="16,10">
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="10" MaximumWidthRequest="680" HorizontalOptions="Center">
+            <Button Text="Decide later" Command="{Binding DecideLaterCommand}" Style="{StaticResource TertiaryButton}" />
+            <Button Grid.Column="1"
+                    Text="Continue"
+                    Command="{Binding ContinueResolutionCommand}"
+                    IsEnabled="{Binding CanContinueResolution}" />
+        </Grid>
+    </Border>
+
+    <Grid Grid.RowSpan="2"
+          ZIndex="100"
+          IsVisible="{Binding IsBusy}"
+          InputTransparent="False"
+          BackgroundColor="#990B1120"
+          Padding="28"
+          SemanticProperties.Description="{Binding BusyMessage}">
+        <Border Style="{StaticResource ElevatedCard}"
+                HorizontalOptions="Center"
+                VerticalOptions="Center"
+                MaximumWidthRequest="340"
+                Padding="24">
+            <VerticalStackLayout Spacing="12" HorizontalOptions="Center">
+                <ActivityIndicator IsRunning="{Binding IsBusy}"
+                                   WidthRequest="42"
+                                   HeightRequest="42"
+                                   HorizontalOptions="Center" />
+                <Label Text="{Binding BusyMessage}"
+                       FontFamily="OpenSansSemibold"
+                       FontSize="17"
+                       HorizontalTextAlignment="Center"
+                       SemanticProperties.HeadingLevel="Level2" />
+                <Label Text="This may take a moment. Keep PassCrate open."
+                       Style="{StaticResource Muted}"
+                       HorizontalTextAlignment="Center" />
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+    </Grid>
 </ContentPage>

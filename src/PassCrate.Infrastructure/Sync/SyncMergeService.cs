@@ -171,8 +171,24 @@ public sealed class SyncMergeService : ISyncMergeService
         {
             EntityKind = envelope.EntityKind,
             RecordId = envelope.RecordId,
+            DisplayName = GetConflictDisplayName(envelope),
             RevisionIds = envelope.Revisions.Select(revision => revision.RevisionId).ToArray(),
             IncludesDeletion = envelope.Revisions.Any(revision => revision.IsDeleted),
+        };
+    }
+
+    private static string GetConflictDisplayName<T>(SyncRecordEnvelope<T> envelope)
+    {
+        var payload = envelope.Revisions
+            .OrderBy(revision => revision.IsDeleted)
+            .ThenBy(revision => revision.RevisionId, StringComparer.Ordinal)
+            .Select(revision => revision.Payload)
+            .FirstOrDefault(candidate => candidate is not null);
+        return payload switch
+        {
+            VaultGroup group => group.Name,
+            VaultSecret secret => secret.Name,
+            _ => envelope.EntityKind == SyncEntityKind.Group ? "Deleted group" : "Deleted secret",
         };
     }
 }

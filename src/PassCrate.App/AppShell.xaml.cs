@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
+using PassCrate.App.Services;
 using PassCrate.App.Views;
 using PassCrate.Core.Interfaces;
+using PassCrate.Core.Legal;
 using PassCrate.Core.Security;
 
 namespace PassCrate.App;
@@ -9,15 +11,19 @@ public partial class AppShell : Shell
 {
     private readonly IVaultRepository _repository;
     private readonly IKeyManagementService _keyManagement;
+    private readonly ILegalAcceptanceStore _legalAcceptance;
     private readonly TabBar _mainTabs;
+    private bool _legalRedirectPending;
 
     public AppShell(
         IServiceProvider services,
         IVaultRepository repository,
-        IKeyManagementService keyManagement)
+        IKeyManagementService keyManagement,
+        ILegalAcceptanceStore legalAcceptance)
     {
         _repository = repository;
         _keyManagement = keyManagement;
+        _legalAcceptance = legalAcceptance;
         InitializeComponent();
         Items.Add(CreateShellContent<WelcomePage>(services, "welcome", "Welcome"));
         Items.Add(CreateShellContent<RegistrationPage>(services, "register", "Create account"));
@@ -39,6 +45,8 @@ public partial class AppShell : Shell
         Routing.RegisterRoute(nameof(CloudRestorePage), typeof(CloudRestorePage));
         Routing.RegisterRoute(nameof(ConflictReviewPage), typeof(ConflictReviewPage));
         Routing.RegisterRoute(nameof(HelpPage), typeof(HelpPage));
+        Routing.RegisterRoute(nameof(LegalAcceptancePage), typeof(LegalAcceptancePage));
+        Routing.RegisterRoute(nameof(LegalDocumentPage), typeof(LegalDocumentPage));
 
         Loaded += OnLoaded;
         Navigating += OnNavigating;
@@ -55,6 +63,29 @@ public partial class AppShell : Shell
     private void OnNavigating(object? sender, ShellNavigatingEventArgs eventArgs)
     {
         var target = eventArgs.Target.Location.OriginalString;
+        var legalDestination = LegalAcceptancePolicy.GetDestinationForRoute(target);
+        if (legalDestination is not null && !_legalAcceptance.HasAcceptedCurrentVersions)
+        {
+            eventArgs.Cancel();
+            if (!_legalRedirectPending)
+            {
+                _legalRedirectPending = true;
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    try
+                    {
+                        await GoToAsync($"{nameof(LegalAcceptancePage)}?next={legalDestination}");
+                    }
+                    finally
+                    {
+                        _legalRedirectPending = false;
+                    }
+                });
+            }
+
+            return;
+        }
+
         var requiresUnlockedVault = NavigationSecurityPolicy.RequiresUnlockedVault(target);
         if (!requiresUnlockedVault || _keyManagement.IsUnlocked)
         {

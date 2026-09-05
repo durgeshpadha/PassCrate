@@ -355,6 +355,21 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
         await _database.DeleteAsync<CloudRestoreJournalEntity>(1).ConfigureAwait(false);
     }
 
+    public async Task ClearVaultForReplacementAsync(CancellationToken cancellationToken = default)
+    {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        await _database.RunInTransactionAsync(connection =>
+        {
+            connection.DeleteAll<VaultMetadataEntity>();
+            connection.DeleteAll<GroupEntity>();
+            connection.DeleteAll<SecretEntity>();
+            connection.DeleteAll<CloudSyncConfigurationEntity>();
+            connection.DeleteAll<SyncRecordRevisionEntity>();
+            connection.DeleteAll<CloudSnapshotCatalogEntity>();
+        }).ConfigureAwait(false);
+    }
+
     public async Task<CloudVaultStateV2> ExportStateV2Async(
         string deviceId,
         CancellationToken cancellationToken = default)
@@ -546,15 +561,10 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
         return entities
             .GroupBy(entity => (entity.EntityKind, entity.RecordId))
             .Where(group => group.Count() > 1 || group.Any(entity => entity.IsConflict))
-            .Select(group => new SyncConflictSet
-            {
-                EntityKind = (SyncEntityKind)group.Key.EntityKind,
-                RecordId = group.Key.RecordId,
-                RevisionIds = group.Select(entity => entity.RevisionId)
-                    .Order(StringComparer.Ordinal)
-                    .ToArray(),
-                IncludesDeletion = group.Any(entity => entity.IsDeleted),
-            })
+            .Select(group => CreateConflictSet(
+                (SyncEntityKind)group.Key.EntityKind,
+                group.Key.RecordId,
+                group.ToArray()))
             .OrderBy(conflict => conflict.EntityKind)
             .ThenBy(conflict => conflict.RecordId, StringComparer.Ordinal)
             .ToArray();
@@ -574,13 +584,7 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
             throw new KeyNotFoundException("Conflict record not found.");
         }
 
-        var conflict = new SyncConflictSet
-        {
-            EntityKind = entityKind,
-            RecordId = recordId,
-            RevisionIds = entities.Select(entity => entity.RevisionId).Order(StringComparer.Ordinal).ToArray(),
-            IncludesDeletion = entities.Any(entity => entity.IsDeleted),
-        };
+        var conflict = CreateConflictSet(entityKind, recordId, entities);
         if (entityKind == SyncEntityKind.Group)
         {
             return new SyncConflictDetails
@@ -595,6 +599,7 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
                         DisplayName = revision.IsDeleted
                             ? $"{revision.Payload?.Name ?? "Group"} (deleted)"
                             : revision.Payload?.Name ?? "Group",
+                        ChangedAt = revision.IsDeleted ? revision.DeletedAt : revision.Payload?.UpdatedAt,
                         Group = revision.Payload,
                     }).ToArray(),
             };
@@ -642,6 +647,7 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
                 RevisionId = revision.RevisionId,
                 IsDeleted = revision.IsDeleted,
                 DisplayName = revision.IsDeleted ? "Secret (deleted)" : document?.Name ?? "Secret",
+                ChangedAt = revision.IsDeleted ? revision.DeletedAt : revision.Payload?.UpdatedAt,
                 Secret = document,
             });
         }
@@ -1023,8 +1029,52 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
         {
             EntityKind = envelope.EntityKind,
             RecordId = envelope.RecordId,
+            DisplayName = GetConflictDisplayName(envelope),
             RevisionIds = envelope.Revisions.Select(revision => revision.RevisionId).ToArray(),
             IncludesDeletion = envelope.Revisions.Any(revision => revision.IsDeleted),
+        };
+    }
+
+    private static SyncConflictSet CreateConflictSet(
+        SyncEntityKind entityKind,
+        string recordId,
+        IReadOnlyList<SyncRecordRevisionEntity> entities)
+    {
+        var displayName = entityKind == SyncEntityKind.Group
+            ? entities.Select(ToGroupRevision)
+                .OrderBy(revision => revision.IsDeleted)
+                .ThenBy(revision => revision.RevisionId, StringComparer.Ordinal)
+                .Select(revision => revision.Payload?.Name)
+                .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name))
+            : entities.Select(ToSecretRevision)
+                .OrderBy(revision => revision.IsDeleted)
+                .ThenBy(revision => revision.RevisionId, StringComparer.Ordinal)
+                .Select(revision => revision.Payload?.Name)
+                .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name));
+        return new SyncConflictSet
+        {
+            EntityKind = entityKind,
+            RecordId = recordId,
+            DisplayName = displayName ?? (entityKind == SyncEntityKind.Group ? "Deleted group" : "Deleted secret"),
+            RevisionIds = entities.Select(entity => entity.RevisionId)
+                .Order(StringComparer.Ordinal)
+                .ToArray(),
+            IncludesDeletion = entities.Any(entity => entity.IsDeleted),
+        };
+    }
+
+    private static string GetConflictDisplayName<T>(SyncRecordEnvelope<T> envelope)
+    {
+        var payload = envelope.Revisions
+            .OrderBy(revision => revision.IsDeleted)
+            .ThenBy(revision => revision.RevisionId, StringComparer.Ordinal)
+            .Select(revision => revision.Payload)
+            .FirstOrDefault(candidate => candidate is not null);
+        return payload switch
+        {
+            VaultGroup group => group.Name,
+            VaultSecret secret => secret.Name,
+            _ => envelope.EntityKind == SyncEntityKind.Group ? "Deleted group" : "Deleted secret",
         };
     }
 
@@ -1034,12 +1084,19 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
         ConflictResolutionRequest request,
         string deviceId)
     {
+        if (request.Resolution == ConflictResolutionKind.KeepBoth)
+        {
+            throw new UserInputValidationException(
+                "Keep both is available for secrets only. Choose one group version or combine the group details.");
+        }
+
         var revisions = entities.Select(ToGroupRevision).ToArray();
         var selected = string.IsNullOrWhiteSpace(request.SelectedRevisionId)
             ? null
             : revisions.FirstOrDefault(revision => revision.RevisionId == request.SelectedRevisionId);
         var delete = request.Resolution switch
         {
+            ConflictResolutionKind.AcceptDeletion => true,
             ConflictResolutionKind.RestoreGroup => false,
             ConflictResolutionKind.MoveSecretsAndDeleteGroup => true,
             _ => selected?.IsDeleted == true,
@@ -1056,7 +1113,8 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
 
         if (delete && connection.Table<SecretEntity>().Any(secret => secret.GroupId == request.RecordId))
         {
-            throw new InvalidOperationException("Move every secret out of this group before completing deletion.");
+            throw new UserInputValidationException(
+                "Move every secret out of this group before keeping the group deleted.");
         }
 
         var vector = SyncRevisionFactory.MergeAll(revisions).Increment(deviceId);
@@ -1089,6 +1147,13 @@ public sealed class SqliteVaultRepository : IVaultRepository, ISyncRepository, I
         ConflictResolutionRequest request,
         string deviceId)
     {
+        if (request.Resolution is ConflictResolutionKind.RestoreGroup or
+            ConflictResolutionKind.MoveSecretsAndDeleteGroup)
+        {
+            throw new UserInputValidationException(
+                "This group-only action cannot be used for a secret conflict.");
+        }
+
         var revisions = entities.Select(ToSecretRevision).ToArray();
         var selected = string.IsNullOrWhiteSpace(request.SelectedRevisionId)
             ? null

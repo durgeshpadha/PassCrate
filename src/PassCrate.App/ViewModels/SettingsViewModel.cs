@@ -153,7 +153,7 @@ public sealed partial class SettingsViewModel(
     private static Task HelpAsync() => Shell.Current.GoToAsync(nameof(Views.HelpPage));
 
     [RelayCommand]
-    private static Task ResetAsync() => Shell.Current.GoToAsync(nameof(Views.ResetPage));
+    private static Task ResetAsync() => Shell.Current.GoToAsync($"{nameof(Views.ResetPage)}?next=welcome");
 
     [RelayCommand]
     private async Task LockAsync()

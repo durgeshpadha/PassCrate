@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage x:Class="PassCrate.App.Views.LegalAcceptancePage"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             Title="Important information"
+             BackgroundColor="{AppThemeBinding Light={StaticResource LightBackground}, Dark={StaticResource DarkBackground}}">
+    <ScrollView>
+        <VerticalStackLayout Style="{StaticResource PageContent}" Spacing="14">
+                <Border Style="{StaticResource IconTile}"
+                        WidthRequest="68"
+                        HeightRequest="68"
+                        StrokeShape="RoundRectangle 22"
+                        HorizontalOptions="Start">
+                    <Label Text="!"
+                           TextColor="{StaticResource Warning}"
+                           FontFamily="OpenSansSemibold"
+                           FontSize="30"
+                           HorizontalTextAlignment="Center"
+                           VerticalTextAlignment="Center" />
+                </Border>
+
+                <VerticalStackLayout Spacing="5">
+                    <Label Text="BEFORE YOU CONTINUE" Style="{StaticResource AccentEyebrow}" />
+                    <Label Text="Protect your access to your data"
+                           Style="{StaticResource PageTitle}"
+                           FontSize="27"
+                           SemanticProperties.HeadingLevel="Level1" />
+                    <Label Text="{Binding PurposeText}" Style="{StaticResource PageLead}" />
+                </VerticalStackLayout>
+
+                <Border Style="{StaticResource WarningCard}">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Your passphrase cannot be recovered"
+                               FontFamily="OpenSansSemibold"
+                               FontSize="16"
+                               SemanticProperties.HeadingLevel="Level2" />
+                        <Label Text="If you forget it, neither PassCrate nor your cloud provider can decrypt your vault."
+                               Style="{StaticResource Muted}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Keep a verified backup" FontFamily="OpenSansSemibold" FontSize="16" />
+                        <Label Text="Resetting, uninstalling, clearing app data, losing your phone, or an incomplete cloud synchronization may permanently remove access to your vault. Maintain an encrypted backup and occasionally verify that it can be found."
+                               Style="{StaticResource Muted}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Software and cloud services can fail" FontFamily="OpenSansSemibold" FontSize="16" />
+                        <Label Text="PassCrate is provided without a guarantee of uninterrupted, error-free, or loss-free operation. Optional Google Drive and Dropbox features also depend on those providers, your account, and connectivity."
+                               Style="{StaticResource Muted}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Style="{StaticResource InfoCard}">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Your legal rights remain" FontFamily="OpenSansSemibold" FontSize="16" />
+                        <Label Text="Warranty and liability limitations apply only to the maximum extent permitted by applicable law. Nothing here excludes a right, remedy, warranty, or liability that cannot legally be excluded."
+                               Style="{StaticResource Muted}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label Text="READ THE FULL DOCUMENTS" Style="{StaticResource Eyebrow}" Margin="2,5,0,0" />
+                <Button Text="Read Terms of Use"
+                        Command="{Binding ReadTermsCommand}"
+                        Style="{StaticResource SecondaryButton}"
+                        SemanticProperties.Description="Open the complete offline Terms of Use" />
+                <Button Text="Read Privacy Policy"
+                        Command="{Binding ReadPrivacyCommand}"
+                        Style="{StaticResource SecondaryButton}"
+                        SemanticProperties.Description="Open the complete offline Privacy Policy" />
+                <Button Text="Read Backup &amp; Recovery Help"
+                        Command="{Binding BackupHelpCommand}"
+                        Style="{StaticResource TertiaryButton}"
+                        SemanticProperties.Description="Open backup and restore Help" />
+                <Label Text="{Binding VersionText}"
+                       Style="{StaticResource Muted}"
+                       FontSize="11"
+                       HorizontalTextAlignment="Center" />
+
+        <Border Stroke="{AppThemeBinding Light={StaticResource LightBorder}, Dark={StaticResource DarkBorder}}"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 18"
+                BackgroundColor="{AppThemeBinding Light={StaticResource LightSurface}, Dark={StaticResource DarkSurface}}"
+                Padding="16">
+            <VerticalStackLayout Spacing="10" MaximumWidthRequest="720" HorizontalOptions="Fill">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" MinimumHeightRequest="48">
+                    <CheckBox IsChecked="{Binding AcceptsTerms}"
+                              VerticalOptions="Start"
+                              SemanticProperties.Description="Accept the Terms of Use, Privacy Policy, and data-loss warning" />
+                    <Label Grid.Column="1"
+                           Text="I have read and accept the Terms of Use and Privacy Policy. I understand that my passphrase cannot be recovered, PassCrate is not guaranteed to operate without errors, and I may permanently lose my vault without a usable encrypted backup."
+                           FontSize="12"
+                           LineHeight="1.2"
+                           VerticalTextAlignment="Center">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding ToggleAcceptanceCommand}" />
+                        </Label.GestureRecognizers>
+                    </Label>
+                </Grid>
+                <Button Text="Accept and continue"
+                        Command="{Binding AcceptAndContinueCommand}"
+                        SemanticProperties.Description="Accept the current legal documents and continue" />
+                <Button Text="Cancel" Command="{Binding CancelCommand}" Style="{StaticResource TertiaryButton}" />
+            </VerticalStackLayout>
+        </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

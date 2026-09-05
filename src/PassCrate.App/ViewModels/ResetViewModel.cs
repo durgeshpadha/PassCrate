@@ -41,12 +41,13 @@ public sealed partial class ResetViewModel(
                 "Phone verification was cancelled. Nothing was deleted.");
         }
 
+        var continueToRestore = restoreAfterReset;
+        restoreAfterReset = false;
         await resetService.ResetAsync();
         Confirmation = string.Empty;
         await ((AppShell)Shell.Current).NavigateToWelcomeAfterResetAsync();
-        if (restoreAfterReset)
+        if (continueToRestore)
         {
-            restoreAfterReset = false;
             await Shell.Current.GoToAsync(nameof(Views.CloudRestorePage));
         }
     }, "Unable to reset PassCrate.");

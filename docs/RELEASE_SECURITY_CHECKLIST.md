@@ -4,7 +4,7 @@
 - [ ] Benchmark Argon2id V2 on the slowest supported Android 13+ and iOS 15+ release devices; target 350–750 ms and 32–128 MiB.
 - [ ] Run all automated tests and Android/iOS managed Release builds with zero warnings.
 - [ ] Confirm locked NuGet restore, full vulnerability audit, and generated SBOM contain no vulnerable runtime dependency.
-- [ ] Test PIN delay progression/persistence, password/PIN KDF upgrades, missing device keys, biometric per-operation auth, and enrollment invalidation.
+- [ ] Test passphrase delay progression/persistence, passphrase KDF upgrades, missing device keys, biometric per-operation auth, and enrollment invalidation.
 - [ ] Fault-inject every reset stage and confirm the next first-launch cleanup completes destruction.
 - [ ] Verify Android NoBackup storage/data-extraction rules and iOS Application Support backup exclusion after database replacement.
 - [ ] Verify first-install cleanup removes surviving Keychain, Dropbox, and Google authorization state.
@@ -16,12 +16,18 @@
 - [ ] Exercise keep-selected, manual field/note merge, keep-both, accept deletion, restore group, and move-then-delete conflict flows.
 - [ ] Test snapshot file/count/cumulative/record/field/plaintext/JSON-depth limits and mid-stream overrun.
 - [ ] Test reconnect without changing vault/recovery/device identity, provider account mismatch, revoked access, quota, retry-after, timeout, offline, and Wi-Fi policy.
+- [ ] On first Google and Dropbox consent, confirm background locking clears the session, unlock resumes the pending connection, and a second Connect attempt is not required.
+- [ ] For a different cloud vault, test all four paths: invalid-passphrase restore preserves local data; replacement verifies its new upload before old-vault deletion; merge re-encrypts imported secrets and prefers local overlaps; account switching changes neither vault.
+- [ ] Verify the different-vault screen shows all four compact choices with none preselected, opens only the chosen details form, clears sensitive fields when changing the choice or backup, and identifies Combine both vaults as recommended.
+- [ ] From every scroll position, repeatedly tap each cloud action and verify one operation starts, the centered progress overlay remains visible, and all page controls plus toolbar/hardware Back remain blocked until completion.
+- [ ] Fault-inject replacement and merge cleanup; confirm a verified new snapshot remains available and the UI reports that cloud cleanup is required.
+- [ ] Verify routine pruning retains no more than ten dominated history snapshots while preserving undominated concurrent heads required for convergence.
 - [ ] Test namespace-scoped deletion, corrupt namespace files, local catalog IDs, and separately confirmed delete-all behavior.
 - [ ] Exercise real two-device and three-device convergence for both Google Drive and Dropbox.
 - [ ] Configure production Google Android/iOS clients and Dropbox App Folder credentials without committing secrets.
 - [ ] Complete accessibility, keyboard, orientation, phone/tablet, and light/dark/system-theme validation.
+- [ ] On a clean install and after Reset, verify Create Vault and Restore from Cloud both stop at Important Information; Continue remains disabled until acceptance; Terms, Privacy, and Help work offline; Cancel changes no data; a current receipt bypasses repeat prompting; and a document-version change prompts again.
 - [ ] Generate and protect signing assets outside source control.
 - [ ] Complete an independent mobile security review and staged rollout before store submission.
 - [ ] Document rooted/jailbroken-device, provider rollback/withholding, managed-memory, coercion, and provider-retention residual risks.
 - [ ] Do not label PassCrate “unhackable” or promise guaranteed recovery or physical erasure.
-

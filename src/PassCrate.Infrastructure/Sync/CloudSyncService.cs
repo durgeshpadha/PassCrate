@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Net;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using PassCrate.Core.Interfaces;
 using PassCrate.Core.Models;
@@ -13,6 +14,7 @@ public sealed class CloudSyncService(
     IVaultRepository vaultRepository,
     IVaultSession session,
     IKeyManagementService keyManagement,
+    IEncryptionService encryption,
     ICloudSnapshotService snapshots,
     ISyncMergeService merger,
     ICloudStorageProviderFactory providerFactory,
@@ -20,6 +22,7 @@ public sealed class CloudSyncService(
     ICloudNetworkPolicy networkPolicy) : ICloudSyncService
 {
     private const int RetainedMergedSnapshots = 10;
+    private static readonly JsonSerializerOptions SecretJsonOptions = new(JsonSerializerDefaults.Web);
     private readonly SemaphoreSlim _operationLock = new(1, 1);
     private CancellationTokenSource? _activeSync;
     private CloudSyncStatus _status = new();
@@ -43,8 +46,10 @@ public sealed class CloudSyncService(
                 group.Key,
                 group.Max(item => item.Snapshot.Header.Generation),
                 group.Count(),
-                provider))
-            .OrderByDescending(item => item.LatestGeneration)
+                provider,
+                group.Select(item => item.File.ModifiedAt).Max()))
+            .OrderByDescending(item => item.LastModifiedAt)
+            .ThenByDescending(item => item.LatestGeneration)
             .ThenBy(item => item.VaultId, StringComparer.Ordinal)
             .ToArray();
         SetStatus(
@@ -74,6 +79,14 @@ public sealed class CloudSyncService(
             }
 
             await authorization.AuthorizeAsync(provider, cancellationToken).ConfigureAwait(false);
+            if (!session.IsUnlocked)
+            {
+                // Interactive OAuth can deactivate the app. PassCrate deliberately
+                // locks at that boundary, so setup must continue only after the user
+                // unlocks again instead of trying to use a cleared vault key.
+                throw new CloudSetupRequiresUnlockException();
+            }
+
             var storage = providerFactory.Get(provider);
             var remote = await DownloadSnapshotHeadersAsync(storage, cancellationToken).ConfigureAwait(false);
             var vaultId = current?.VaultId ?? Guid.NewGuid().ToString("N");
@@ -164,6 +177,14 @@ public sealed class CloudSyncService(
                 CryptographicOperations.ZeroMemory(dataEncryptionKey);
             }
         }
+        catch (CloudSetupRequiresUnlockException)
+        {
+            SetStatus(
+                CloudSyncState.Connecting,
+                provider,
+                "Cloud access was approved. Unlock your vault to finish connecting.");
+            throw;
+        }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             SetFailureStatus(exception, provider, null);
@@ -204,6 +225,15 @@ public sealed class CloudSyncService(
                     configuration.VaultId,
                     dataEncryptionKey,
                     operationToken).ConfigureAwait(false);
+                var uploadConfiguration = valid.Count == 0
+                    ? configuration
+                    : configuration with
+                    {
+                        // A second device may still use its former local unlock
+                        // passphrase. Preserve the newest cloud recovery envelope so
+                        // that device cannot make the former cloud passphrase valid.
+                        Recovery = SelectAuthoritativeSnapshot(valid).Snapshot.Header.Recovery,
+                    };
                 var heads = FindHeads(valid);
                 var merged = await syncRepository.ExportStateV2Async(
                     configuration.DeviceId,
@@ -225,7 +255,7 @@ public sealed class CloudSyncService(
                     valid.Count == 0 ? 0 : valid.Max(item => item.Snapshot.Header.Generation)) + 1;
                 var upload = await UploadStateAsync(
                     storage,
-                    configuration,
+                    uploadConfiguration,
                     merged,
                     parents,
                     generation,
@@ -418,25 +448,19 @@ public sealed class CloudSyncService(
                 throw new CloudSnapshotUnavailableException();
             }
 
-            DownloadedSnapshot? recoverySource = null;
-            foreach (var candidate in candidates)
+            // Passphrase rotation creates the authoritative newest snapshot.
+            // Falling back to an older recovery envelope would incorrectly accept
+            // a former passphrase after the user has changed it.
+            var recoverySource = SelectAuthoritativeSnapshot(candidates);
+            try
             {
-                try
-                {
-                    dataEncryptionKey = await snapshots.RecoverDataEncryptionKeyAsync(
-                        candidate.Snapshot,
-                        request.VaultPassphrase,
-                        cancellationToken).ConfigureAwait(false);
-                    recoverySource = candidate;
-                    break;
-                }
-                catch (Exception exception) when (
-                    exception is CryptographicException or InvalidDataException or ArgumentException)
-                {
-                }
+                dataEncryptionKey = await snapshots.RecoverDataEncryptionKeyAsync(
+                    recoverySource.Snapshot,
+                    request.VaultPassphrase,
+                    cancellationToken).ConfigureAwait(false);
             }
-
-            if (dataEncryptionKey is null || recoverySource is null)
+            catch (Exception exception) when (
+                exception is CryptographicException or InvalidDataException or ArgumentException)
             {
                 throw new CloudRestoreFailedException();
             }
@@ -520,6 +544,381 @@ public sealed class CloudSyncService(
                 CryptographicOperations.ZeroMemory(dataEncryptionKey);
             }
 
+            _operationLock.Release();
+        }
+    }
+
+    public async Task<CloudVaultContentsSummary> ValidateCloudVaultAsync(
+        CloudRestoreRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        CredentialPolicy.ValidateVaultPassphrase(request.VaultPassphrase);
+        EnsureUnlocked();
+        EnsureNetworkAvailable();
+        await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            SetStatus(CloudSyncState.Connecting, request.Provider, "Checking the selected cloud backup…");
+            await authorization.AuthorizeAsync(request.Provider, cancellationToken).ConfigureAwait(false);
+            EnsureUnlockedAfterAuthorization();
+            using var prepared = await PrepareCloudVaultAsync(
+                providerFactory.Get(request.Provider),
+                request.VaultId,
+                request.VaultPassphrase,
+                cancellationToken).ConfigureAwait(false);
+            var summary = Summarize(prepared.State);
+            SetStatus(
+                CloudSyncState.VaultMismatch,
+                request.Provider,
+                $"Cloud backup verified: {summary.GroupCount} groups and {summary.SecretCount} secrets.");
+            return summary;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            SetFailureStatus(exception, request.Provider, null);
+            throw;
+        }
+        finally
+        {
+            _operationLock.Release();
+        }
+    }
+
+    public async Task RestoreReplacingLocalAsync(
+        CloudRestoreRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        CredentialPolicy.ValidateVaultPassphrase(request.VaultPassphrase);
+        EnsureUnlocked();
+        if (await vaultRepository.GetVaultMetadataAsync(cancellationToken).ConfigureAwait(false) is null)
+        {
+            throw new InvalidOperationException("No local vault exists to replace.");
+        }
+
+        EnsureNetworkAvailable();
+        await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var localMutationStarted = false;
+        try
+        {
+            SetStatus(CloudSyncState.Connecting, request.Provider, "Verifying the cloud backup before replacing this vault…");
+            await authorization.AuthorizeAsync(request.Provider, cancellationToken).ConfigureAwait(false);
+            EnsureUnlockedAfterAuthorization();
+            using var prepared = await PrepareCloudVaultAsync(
+                providerFactory.Get(request.Provider),
+                request.VaultId,
+                request.VaultPassphrase,
+                cancellationToken).ConfigureAwait(false);
+
+            await syncRepository.BeginRestoreAsync(cancellationToken).ConfigureAwait(false);
+            localMutationStarted = true;
+            keyManagement.LockVault();
+            await syncRepository.ClearVaultForReplacementAsync(cancellationToken).ConfigureAwait(false);
+            await keyManagement.InitializeRestoredVaultAsync(
+                request.VaultPassphrase,
+                prepared.DataEncryptionKey,
+                cancellationToken).ConfigureAwait(false);
+            var now = DateTimeOffset.UtcNow;
+            var configuration = new CloudSyncConfiguration
+            {
+                Version = 2,
+                IsEnabled = true,
+                Provider = request.Provider,
+                VaultId = request.VaultId,
+                DeviceId = Guid.NewGuid().ToString("N"),
+                Recovery = prepared.RecoverySource.Snapshot.Header.Recovery,
+                HeadSnapshotIds = prepared.Heads
+                    .Select(item => item.Snapshot.Header.SnapshotId)
+                    .Order(StringComparer.Ordinal)
+                    .ToArray(),
+                Generation = prepared.ValidSnapshots.Max(item => item.Snapshot.Header.Generation),
+                LastSuccessfulSyncAt = now,
+            };
+            await syncRepository.ApplyMergedStateV2Async(
+                prepared.State,
+                configuration,
+                cancellationToken).ConfigureAwait(false);
+            await syncRepository.CompleteRestoreAsync(cancellationToken).ConfigureAwait(false);
+            SetStatus(
+                CloudSyncState.Ready,
+                request.Provider,
+                "The existing cloud vault is now restored on this device.",
+                now,
+                CountConflicts(prepared.State));
+        }
+        catch
+        {
+            if (localMutationStarted)
+            {
+                keyManagement.LockVault();
+                await syncRepository.ClearVaultForReplacementAsync(CancellationToken.None).ConfigureAwait(false);
+                await syncRepository.CompleteRestoreAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+
+            throw;
+        }
+        finally
+        {
+            _operationLock.Release();
+        }
+    }
+
+    public async Task ReplaceCloudVaultAsync(
+        CloudVaultReplacementRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (!string.Equals(request.TypedConfirmation.Trim(), "REPLACE CLOUD BACKUP", StringComparison.Ordinal))
+        {
+            throw new UserInputValidationException("Type REPLACE CLOUD BACKUP exactly to confirm replacement.");
+        }
+
+        CredentialPolicy.ValidateVaultPassphrase(request.LocalVaultPassphrase);
+        EnsureUnlocked();
+        await keyManagement.VerifyPassphraseAsync(request.LocalVaultPassphrase, cancellationToken).ConfigureAwait(false);
+        EnsureNetworkAvailable();
+        await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            SetStatus(CloudSyncState.Syncing, request.Provider, "Creating and verifying the replacement backup…");
+            await authorization.AuthorizeAsync(request.Provider, cancellationToken).ConfigureAwait(false);
+            EnsureUnlockedAfterAuthorization();
+            var storage = providerFactory.Get(request.Provider);
+            var remote = await DownloadSnapshotHeadersAsync(storage, cancellationToken).ConfigureAwait(false);
+            var obsolete = remote
+                .Where(item => item.Snapshot.Header.VaultId == request.CloudVaultId)
+                .ToArray();
+            if (obsolete.Length == 0)
+            {
+                throw new CloudSnapshotUnavailableException();
+            }
+
+            var dataEncryptionKey = session.UseKey(key => key.ToArray());
+            try
+            {
+                var existingConfiguration = await syncRepository.GetConfigurationAsync(cancellationToken).ConfigureAwait(false);
+                var vaultId = existingConfiguration?.VaultId ?? Guid.NewGuid().ToString("N");
+                if (StringComparer.Ordinal.Equals(vaultId, request.CloudVaultId))
+                {
+                    throw new InvalidOperationException("The selected backup already belongs to this vault.");
+                }
+
+                var deviceId = existingConfiguration?.DeviceId ?? Guid.NewGuid().ToString("N");
+                await syncRepository.InitializeRecordVectorsAsync(deviceId, cancellationToken).ConfigureAwait(false);
+                var recovery = await snapshots.CreateRecoveryEnvelopeAsync(
+                    vaultId,
+                    request.LocalVaultPassphrase,
+                    dataEncryptionKey,
+                    cancellationToken).ConfigureAwait(false);
+                var configuration = new CloudSyncConfiguration
+                {
+                    Version = 2,
+                    IsEnabled = true,
+                    Provider = request.Provider,
+                    VaultId = vaultId,
+                    DeviceId = deviceId,
+                    Recovery = recovery,
+                    WifiOnly = existingConfiguration?.WifiOnly ?? false,
+                };
+                var state = await syncRepository.ExportStateV2Async(deviceId, cancellationToken).ConfigureAwait(false);
+                var upload = await UploadSnapshotOnlyAsync(
+                    storage,
+                    configuration,
+                    state,
+                    [],
+                    generation: 1,
+                    dataEncryptionKey,
+                    cancellationToken).ConfigureAwait(false);
+                await VerifyUploadedSnapshotAsync(storage, upload, dataEncryptionKey, cancellationToken).ConfigureAwait(false);
+                await CommitUploadedStateAsync(
+                    configuration,
+                    state,
+                    [],
+                    generation: 1,
+                    dataEncryptionKey,
+                    upload,
+                    cancellationToken).ConfigureAwait(false);
+                var cleanupComplete = await TryDeleteSnapshotsAsync(
+                    storage,
+                    obsolete,
+                    cancellationToken).ConfigureAwait(false);
+                SetStatus(
+                    cleanupComplete ? CloudSyncState.Ready : CloudSyncState.CloudCleanupRequired,
+                    request.Provider,
+                    cleanupComplete
+                        ? "The new vault replaced the selected cloud backup."
+                        : "The new backup is safe, but the older backup could not be removed. Try cleanup again later.",
+                    upload.CompletedAt,
+                    CountConflicts(state));
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(dataEncryptionKey);
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            SetFailureStatus(exception, request.Provider, null);
+            throw;
+        }
+        finally
+        {
+            _operationLock.Release();
+        }
+    }
+
+    public async Task<CloudVaultMergePreview> PreviewMergeAsync(
+        CloudVaultMergeRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateMergeRequest(request);
+        EnsureUnlocked();
+        await keyManagement.VerifyPassphraseAsync(request.LocalVaultPassphrase, cancellationToken).ConfigureAwait(false);
+        EnsureNetworkAvailable();
+        await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            SetStatus(CloudSyncState.Connecting, request.Provider, "Checking both vaults before merging…");
+            await authorization.AuthorizeAsync(request.Provider, cancellationToken).ConfigureAwait(false);
+            EnsureUnlockedAfterAuthorization();
+            using var prepared = await PrepareCloudVaultAsync(
+                providerFactory.Get(request.Provider),
+                request.CloudVaultId,
+                request.CloudVaultPassphrase,
+                cancellationToken).ConfigureAwait(false);
+            var preview = await CreateMergePreviewAsync(prepared.State, cancellationToken).ConfigureAwait(false);
+            SetStatus(
+                CloudSyncState.VaultMismatch,
+                request.Provider,
+                $"Merge ready: {preview.ImportedItems} cloud items will be added and {preview.LocalPreferredCollisions} overlaps will keep the local version.");
+            return preview;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            SetFailureStatus(exception, request.Provider, null);
+            throw;
+        }
+        finally
+        {
+            _operationLock.Release();
+        }
+    }
+
+    public async Task<CloudVaultMergeResult> MergeDifferentVaultAsync(
+        CloudVaultMergeRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateMergeRequest(request);
+        EnsureUnlocked();
+        await keyManagement.VerifyPassphraseAsync(request.LocalVaultPassphrase, cancellationToken).ConfigureAwait(false);
+        EnsureNetworkAvailable();
+        await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            SetStatus(CloudSyncState.Syncing, request.Provider, "Merging and protecting both vaults…");
+            await authorization.AuthorizeAsync(request.Provider, cancellationToken).ConfigureAwait(false);
+            EnsureUnlockedAfterAuthorization();
+            var storage = providerFactory.Get(request.Provider);
+            using var prepared = await PrepareCloudVaultAsync(
+                storage,
+                request.CloudVaultId,
+                request.CloudVaultPassphrase,
+                cancellationToken).ConfigureAwait(false);
+            var preview = await CreateMergePreviewAsync(prepared.State, cancellationToken).ConfigureAwait(false);
+            var localKey = session.UseKey(key => key.ToArray());
+            try
+            {
+                var existingConfiguration = await syncRepository.GetConfigurationAsync(cancellationToken).ConfigureAwait(false);
+                var vaultId = existingConfiguration?.VaultId ?? Guid.NewGuid().ToString("N");
+                var deviceId = existingConfiguration?.DeviceId ?? Guid.NewGuid().ToString("N");
+                await syncRepository.InitializeRecordVectorsAsync(deviceId, cancellationToken).ConfigureAwait(false);
+                var localState = await syncRepository.ExportStateV2Async(deviceId, cancellationToken).ConfigureAwait(false);
+                var importedCloudState = ReencryptCloudSecrets(
+                    prepared.State,
+                    prepared.DataEncryptionKey,
+                    localKey);
+                var mergedState = MergePreferLocal(localState, importedCloudState);
+                var recovery = await snapshots.CreateRecoveryEnvelopeAsync(
+                    vaultId,
+                    request.LocalVaultPassphrase,
+                    localKey,
+                    cancellationToken).ConfigureAwait(false);
+                var configuration = new CloudSyncConfiguration
+                {
+                    Version = 2,
+                    IsEnabled = true,
+                    Provider = request.Provider,
+                    VaultId = vaultId,
+                    DeviceId = deviceId,
+                    Recovery = recovery,
+                    WifiOnly = existingConfiguration?.WifiOnly ?? false,
+                };
+                var upload = await UploadSnapshotOnlyAsync(
+                    storage,
+                    configuration,
+                    mergedState,
+                    [],
+                    generation: 1,
+                    localKey,
+                    cancellationToken).ConfigureAwait(false);
+                await VerifyUploadedSnapshotAsync(storage, upload, localKey, cancellationToken).ConfigureAwait(false);
+                await CommitUploadedStateAsync(
+                    configuration,
+                    mergedState,
+                    [],
+                    generation: 1,
+                    localKey,
+                    upload,
+                    cancellationToken).ConfigureAwait(false);
+                var cleanupComplete = await TryDeleteSnapshotsAsync(
+                    storage,
+                    prepared.Candidates,
+                    cancellationToken).ConfigureAwait(false);
+                SetStatus(
+                    cleanupComplete ? CloudSyncState.Ready : CloudSyncState.CloudCleanupRequired,
+                    request.Provider,
+                    cleanupComplete
+                        ? "The cloud data was merged into this vault. Local versions were kept for overlaps."
+                        : "The merged backup is safe, but the older backup could not be removed. Try cleanup again later.",
+                    upload.CompletedAt,
+                    CountConflicts(mergedState));
+                return new CloudVaultMergeResult(
+                    preview,
+                    new CloudSyncResult(
+                        upload.Snapshot.Header.SnapshotId,
+                        CountConflicts(mergedState),
+                        upload.CompletedAt));
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(localKey);
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            SetFailureStatus(exception, request.Provider, null);
+            throw;
+        }
+        finally
+        {
+            _operationLock.Release();
+        }
+    }
+
+    public async Task SwitchCloudAccountAsync(
+        CloudProviderKind provider,
+        CancellationToken cancellationToken = default)
+    {
+        CancelActiveSync();
+        await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await authorization.DisconnectAsync(provider, cancellationToken).ConfigureAwait(false);
+            SetStatus(CloudSyncState.Disabled, null, "Cloud account disconnected. Choose a provider to connect another account.");
+        }
+        finally
+        {
             _operationLock.Release();
         }
     }
@@ -694,6 +1093,294 @@ public sealed class CloudSyncService(
         CancelActiveSync();
         SetStatus(CloudSyncState.Disabled, null, "Cloud sync is off.");
     }
+
+    private async Task<PreparedCloudVault> PrepareCloudVaultAsync(
+        ICloudStorageProvider storage,
+        string vaultId,
+        string vaultPassphrase,
+        CancellationToken cancellationToken)
+    {
+        var candidates = (await DownloadSnapshotHeadersAsync(storage, cancellationToken).ConfigureAwait(false))
+            .Where(item => item.Snapshot.Header.VaultId == vaultId)
+            .OrderByDescending(item => item.Snapshot.Header.Generation)
+            .ThenByDescending(item => item.File.ModifiedAt)
+            .ThenBy(item => item.Snapshot.Header.SnapshotId, StringComparer.Ordinal)
+            .ToArray();
+        if (candidates.Length == 0)
+        {
+            throw new CloudSnapshotUnavailableException();
+        }
+
+        var recoverySource = SelectAuthoritativeSnapshot(candidates);
+        byte[] dataEncryptionKey;
+        try
+        {
+            dataEncryptionKey = await snapshots.RecoverDataEncryptionKeyAsync(
+                recoverySource.Snapshot,
+                vaultPassphrase,
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (
+            exception is CryptographicException or InvalidDataException or ArgumentException)
+        {
+            throw new CloudRestoreFailedException();
+        }
+
+        try
+        {
+            var valid = new List<DownloadedSnapshot>();
+            foreach (var candidate in candidates)
+            {
+                try
+                {
+                    valid.Add(candidate with
+                    {
+                        State = snapshots.DecryptState(candidate.Snapshot, dataEncryptionKey),
+                    });
+                }
+                catch (Exception exception) when (
+                    exception is CryptographicException or InvalidDataException or CloudResourceLimitException)
+                {
+                }
+            }
+
+            var heads = FindHeads(valid);
+            if (heads.Count == 0)
+            {
+                throw new CloudSnapshotUnavailableException();
+            }
+
+            var state = heads[0].State!;
+            foreach (var head in heads.Skip(1))
+            {
+                state = merger.Merge(state, head.State!).State;
+            }
+
+            return new PreparedCloudVault(
+                dataEncryptionKey,
+                recoverySource,
+                candidates,
+                valid,
+                heads,
+                state);
+        }
+        catch
+        {
+            CryptographicOperations.ZeroMemory(dataEncryptionKey);
+            throw;
+        }
+    }
+
+    private async Task<CloudVaultMergePreview> CreateMergePreviewAsync(
+        CloudVaultStateV2 cloudState,
+        CancellationToken cancellationToken)
+    {
+        var localGroupIds = (await vaultRepository.GetGroupsAsync(cancellationToken).ConfigureAwait(false))
+            .Select(group => group.Id)
+            .ToHashSet(StringComparer.Ordinal);
+        var localSecretIds = (await vaultRepository.GetAllSecretsAsync(cancellationToken).ConfigureAwait(false))
+            .Select(secret => secret.Id)
+            .ToHashSet(StringComparer.Ordinal);
+        var cloudGroupIds = ActiveRecordIds(cloudState.Groups);
+        var cloudSecretIds = ActiveRecordIds(cloudState.Secrets);
+        return new CloudVaultMergePreview(
+            localGroupIds.Except(cloudGroupIds, StringComparer.Ordinal).Count(),
+            cloudGroupIds.Except(localGroupIds, StringComparer.Ordinal).Count(),
+            localSecretIds.Except(cloudSecretIds, StringComparer.Ordinal).Count(),
+            cloudSecretIds.Except(localSecretIds, StringComparer.Ordinal).Count(),
+            localGroupIds.Intersect(cloudGroupIds, StringComparer.Ordinal).Count() +
+            localSecretIds.Intersect(cloudSecretIds, StringComparer.Ordinal).Count());
+    }
+
+    private CloudVaultStateV2 ReencryptCloudSecrets(
+        CloudVaultStateV2 cloudState,
+        ReadOnlyMemory<byte> cloudKey,
+        ReadOnlyMemory<byte> localKey) => new()
+    {
+        Groups = cloudState.Groups,
+        Secrets = cloudState.Secrets.Select(envelope => new SyncRecordEnvelope<VaultSecret>
+        {
+            EntityKind = envelope.EntityKind,
+            RecordId = envelope.RecordId,
+            Revisions = envelope.Revisions.Select(revision =>
+            {
+                if (revision.Payload is null)
+                {
+                    return revision;
+                }
+
+                var source = revision.Payload;
+                var associatedData = CreateSecretAssociatedData(
+                    source.Id,
+                    source.GroupId,
+                    source.EncryptionVersion);
+                byte[]? plaintext = null;
+                try
+                {
+                    plaintext = encryption.Decrypt(
+                        source.EncryptedPayload,
+                        cloudKey.Span,
+                        associatedData);
+                    var document = JsonSerializer.Deserialize<SecretDocument>(plaintext, SecretJsonOptions)
+                        ?? throw new InvalidDataException("A cloud secret is invalid.");
+                    if (document.Fields.Count > CloudResourceLimits.MaximumFieldsPerSecret ||
+                        plaintext.Length > CloudResourceLimits.MaximumSecretPlaintextBytes)
+                    {
+                        throw new CloudResourceLimitException("A cloud secret exceeds PassCrate's safety limits.");
+                    }
+
+                    var reencrypted = source with
+                    {
+                        EncryptedPayload = encryption.Encrypt(
+                            plaintext,
+                            localKey.Span,
+                            associatedData),
+                    };
+                    return SyncRevisionFactory.Create(
+                        SyncEntityKind.Secret,
+                        envelope.RecordId,
+                        revision.Vector,
+                        revision.IsDeleted,
+                        revision.DeletedAt,
+                        reencrypted,
+                        revision.IsConflict);
+                }
+                catch (CryptographicException)
+                {
+                    throw new CloudRestoreFailedException();
+                }
+                catch (JsonException)
+                {
+                    throw new CloudRestoreFailedException();
+                }
+                finally
+                {
+                    if (plaintext is not null)
+                    {
+                        CryptographicOperations.ZeroMemory(plaintext);
+                    }
+                }
+            }).ToArray(),
+        }).ToArray(),
+    };
+
+    private static CloudVaultStateV2 MergePreferLocal(
+        CloudVaultStateV2 localState,
+        CloudVaultStateV2 importedCloudState)
+    {
+        var localGroupIds = localState.Groups.Select(item => item.RecordId).ToHashSet(StringComparer.Ordinal);
+        var localSecretIds = localState.Secrets.Select(item => item.RecordId).ToHashSet(StringComparer.Ordinal);
+        return new CloudVaultStateV2
+        {
+            Groups = localState.Groups
+                .Concat(importedCloudState.Groups.Where(item => !localGroupIds.Contains(item.RecordId)))
+                .OrderBy(item => item.RecordId, StringComparer.Ordinal)
+                .ToArray(),
+            Secrets = localState.Secrets
+                .Concat(importedCloudState.Secrets.Where(item => !localSecretIds.Contains(item.RecordId)))
+                .OrderBy(item => item.RecordId, StringComparer.Ordinal)
+                .ToArray(),
+        };
+    }
+
+    private async Task VerifyUploadedSnapshotAsync(
+        ICloudStorageProvider storage,
+        UploadResult upload,
+        ReadOnlyMemory<byte> dataEncryptionKey,
+        CancellationToken cancellationToken)
+    {
+        await using var stream = await storage.DownloadAsync(
+            upload.File.ProviderFileId,
+            CloudResourceLimits.MaximumSnapshotBytes,
+            cancellationToken).ConfigureAwait(false);
+        using var buffer = new MemoryStream();
+        await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
+        if (buffer.Length <= 0 || buffer.Length > CloudResourceLimits.MaximumSnapshotBytes)
+        {
+            throw new InvalidDataException("The uploaded cloud backup could not be verified.");
+        }
+
+        var content = buffer.ToArray();
+        try
+        {
+            var downloaded = snapshots.DeserializeSnapshotV2(content);
+            if (!StringComparer.Ordinal.Equals(
+                    downloaded.Header.SnapshotId,
+                    upload.Snapshot.Header.SnapshotId) ||
+                !StringComparer.Ordinal.Equals(
+                    downloaded.Header.VaultId,
+                    upload.Snapshot.Header.VaultId))
+            {
+                throw new InvalidDataException("The uploaded cloud backup did not match the expected vault.");
+            }
+
+            _ = snapshots.DecryptState(downloaded, dataEncryptionKey);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(content);
+        }
+    }
+
+    private static async Task<bool> TryDeleteSnapshotsAsync(
+        ICloudStorageProvider storage,
+        IEnumerable<DownloadedSnapshot> snapshotsToDelete,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            foreach (var providerFileId in snapshotsToDelete
+                         .Select(item => item.File.ProviderFileId)
+                         .Distinct(StringComparer.Ordinal))
+            {
+                await storage.DeleteAsync(providerFileId, cancellationToken).ConfigureAwait(false);
+            }
+
+            return true;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return false;
+        }
+    }
+
+    private static void ValidateMergeRequest(CloudVaultMergeRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        CredentialPolicy.ValidateVaultPassphrase(request.LocalVaultPassphrase);
+        CredentialPolicy.ValidateVaultPassphrase(request.CloudVaultPassphrase);
+        if (string.IsNullOrWhiteSpace(request.CloudVaultId))
+        {
+            throw new UserInputValidationException("Select the cloud backup to merge.");
+        }
+    }
+
+    private void EnsureUnlockedAfterAuthorization()
+    {
+        if (!session.IsUnlocked)
+        {
+            throw new CloudSetupRequiresUnlockException();
+        }
+    }
+
+    private static CloudVaultContentsSummary Summarize(CloudVaultStateV2 state) => new(
+        ActiveRecordIds(state.Groups).Count,
+        ActiveRecordIds(state.Secrets).Count);
+
+    private static HashSet<string> ActiveRecordIds<T>(
+        IReadOnlyList<SyncRecordEnvelope<T>> envelopes) => envelopes
+        .Where(envelope => SelectPrimary(envelope.Revisions) is { IsDeleted: false, Payload: not null })
+        .Select(envelope => envelope.RecordId)
+        .ToHashSet(StringComparer.Ordinal);
+
+    private static SyncRecordRevision<T>? SelectPrimary<T>(
+        IReadOnlyList<SyncRecordRevision<T>> revisions) => revisions
+        .OrderBy(revision => revision.IsDeleted)
+        .ThenBy(revision => revision.RevisionId, StringComparer.Ordinal)
+        .FirstOrDefault();
+
+    private static byte[] CreateSecretAssociatedData(string id, string groupId, int version) =>
+        Encoding.UTF8.GetBytes($"passcrate:secret:{version}:{id}:{groupId}");
 
     private async Task<UploadResult> UploadCurrentStateAsync(
         ICloudStorageProvider storage,
@@ -932,6 +1619,13 @@ public sealed class CloudSyncService(
             .ToArray();
     }
 
+    private static DownloadedSnapshot SelectAuthoritativeSnapshot(
+        IReadOnlyList<DownloadedSnapshot> snapshotSet) => snapshotSet
+        .OrderByDescending(item => item.Snapshot.Header.Generation)
+        .ThenByDescending(item => item.File.ModifiedAt)
+        .ThenByDescending(item => item.Snapshot.Header.SnapshotId, StringComparer.Ordinal)
+        .First();
+
     private static async Task PruneAsync(
         ICloudStorageProvider storage,
         IReadOnlyList<DownloadedSnapshot> existing,
@@ -1020,6 +1714,8 @@ public sealed class CloudSyncService(
                 (CloudSyncState.QuotaLimited, "Cloud storage is full or temporarily busy. Your changes on this device are safe."),
             CloudResourceLimitException =>
                 (CloudSyncState.CloudCleanupRequired, "Remove old PassCrate backups before syncing again."),
+            CloudVaultMismatchException =>
+                (CloudSyncState.VaultMismatch, "Another PassCrate vault already has a backup in this cloud account."),
             HttpRequestException when !networkPolicy.IsInternetAvailable =>
                 (CloudSyncState.Offline, "Offline. Local changes are safe and will sync later."),
             HttpRequestException =>
@@ -1054,6 +1750,24 @@ public sealed class CloudSyncService(
             envelope.Revisions.Count > 1 || envelope.Revisions.Any(revision => revision.IsConflict)) +
         state.Secrets.Count(envelope =>
             envelope.Revisions.Count > 1 || envelope.Revisions.Any(revision => revision.IsConflict));
+
+    private sealed class PreparedCloudVault(
+        byte[] dataEncryptionKey,
+        DownloadedSnapshot recoverySource,
+        IReadOnlyList<DownloadedSnapshot> candidates,
+        IReadOnlyList<DownloadedSnapshot> validSnapshots,
+        IReadOnlyList<DownloadedSnapshot> heads,
+        CloudVaultStateV2 state) : IDisposable
+    {
+        public byte[] DataEncryptionKey { get; } = dataEncryptionKey;
+        public DownloadedSnapshot RecoverySource { get; } = recoverySource;
+        public IReadOnlyList<DownloadedSnapshot> Candidates { get; } = candidates;
+        public IReadOnlyList<DownloadedSnapshot> ValidSnapshots { get; } = validSnapshots;
+        public IReadOnlyList<DownloadedSnapshot> Heads { get; } = heads;
+        public CloudVaultStateV2 State { get; } = state;
+
+        public void Dispose() => CryptographicOperations.ZeroMemory(DataEncryptionKey);
+    }
 
     private sealed record DownloadedSnapshot(
         CloudFileInfo File,

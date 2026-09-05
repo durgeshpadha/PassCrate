@@ -11,12 +11,16 @@ public sealed partial class UnlockViewModel(
     IVaultRepository repository,
     IKeyManagementService keyManagement,
     IBiometricUnlockService biometricUnlock,
-    ICloudSyncScheduler cloudSync) : BaseViewModel, ISensitiveStateViewModel
+    ICloudSyncScheduler cloudSyncScheduler,
+    ICloudSyncService cloudSync,
+    CloudSyncSetupContinuation setupContinuation) : BaseViewModel, ISensitiveStateViewModel
 {
     [ObservableProperty] private string passphrase = string.Empty;
     [ObservableProperty] private bool isBiometricAvailable;
     [ObservableProperty] private bool isPassphraseInvalid;
     [ObservableProperty] private bool isDeviceRecoveryRequired;
+    [ObservableProperty] private bool isCloudSetupPending;
+    [ObservableProperty] private string cloudSetupMessage = string.Empty;
 
     public async Task LoadAsync()
     {
@@ -28,6 +32,10 @@ public sealed partial class UnlockViewModel(
         }
 
         IsBiometricAvailable = await biometricUnlock.IsEnabledAsync();
+        IsCloudSetupPending = setupContinuation.TryGetProvider(out var pendingProvider);
+        CloudSetupMessage = IsCloudSetupPending
+            ? $"Unlock to finish connecting {ProviderName(pendingProvider)}. Your cloud permission was approved."
+            : string.Empty;
     }
 
     [RelayCommand]
@@ -60,9 +68,35 @@ public sealed partial class UnlockViewModel(
             IsPassphraseInvalid = true;
             throw;
         }
-        cloudSync.NotifyVaultUnlocked();
+        var resumeCloudSetup = setupContinuation.TryGetProvider(out var pendingProvider);
+        if (resumeCloudSetup)
+        {
+            try
+            {
+                await cloudSync.EnableAsync(pendingProvider, Passphrase);
+                setupContinuation.Clear();
+            }
+            catch (CloudSetupRequiresUnlockException)
+            {
+                setupContinuation.WaitForUnlock(pendingProvider);
+                Passphrase = string.Empty;
+                return;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                // Unlock succeeded. CloudSyncService has recorded the provider error,
+                // which the Cloud Sync page will show with a safe retry path.
+                setupContinuation.Clear();
+            }
+        }
+
+        cloudSyncScheduler.NotifyVaultUnlocked();
         Passphrase = string.Empty;
         await ((AppShell)Shell.Current).NavigateToFreshMainAsync();
+        if (resumeCloudSetup)
+        {
+            await Shell.Current.GoToAsync(nameof(Views.CloudSyncPage));
+        }
     }, "Unable to unlock your vault.");
 
     [RelayCommand]
@@ -79,12 +113,17 @@ public sealed partial class UnlockViewModel(
                 "Biometric authentication was cancelled or not recognized. Try again.");
         }
 
-        cloudSync.NotifyVaultUnlocked();
+        cloudSyncScheduler.NotifyVaultUnlocked();
         await ((AppShell)Shell.Current).NavigateToFreshMainAsync();
+        if (setupContinuation.TryGetProvider(out _))
+        {
+            await Shell.Current.GoToAsync(nameof(Views.CloudSyncPage));
+        }
     }, "Unable to unlock your vault.");
 
     [RelayCommand]
-    private static Task ForgotPassphraseAsync() => Shell.Current.GoToAsync(nameof(Views.ResetPage));
+    private static Task ForgotPassphraseAsync() =>
+        Shell.Current.GoToAsync($"{nameof(Views.ResetPage)}?next=welcome");
 
     [RelayCommand]
     private static async Task RestoreFromCloudAsync()
@@ -109,6 +148,8 @@ public sealed partial class UnlockViewModel(
         Passphrase = string.Empty;
         IsPassphraseInvalid = false;
         IsDeviceRecoveryRequired = false;
+        IsCloudSetupPending = false;
+        CloudSetupMessage = string.Empty;
         ErrorMessage = string.Empty;
     }
 
@@ -130,4 +171,7 @@ public sealed partial class UnlockViewModel(
         await Shell.Current.GoToAsync("//welcome");
         return false;
     }
+
+    private static string ProviderName(PassCrate.Core.Models.CloudProviderKind provider) =>
+        provider == PassCrate.Core.Models.CloudProviderKind.Dropbox ? "Dropbox" : "Google Drive";
 }

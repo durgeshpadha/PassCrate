@@ -29,9 +29,45 @@
                             <Label Text="Connect the Google Drive or Dropbox account used on your other device." Style="{StaticResource Muted}" />
                         </VerticalStackLayout>
                     </Grid>
-                    <Border Style="{StaticResource FieldBorder}">
-                        <Picker ItemsSource="{Binding ProviderOptions}" SelectedItem="{Binding SelectedProvider}" />
-                    </Border>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Border Style="{StaticResource Card}"
+                                Padding="12"
+                                MinimumHeightRequest="58"
+                                SemanticProperties.Description="Google Drive cloud service">
+                            <Border.Triggers>
+                                <DataTrigger TargetType="Border" Binding="{Binding IsGoogleDriveSelected}" Value="True">
+                                    <Setter Property="Stroke" Value="{StaticResource Primary}" />
+                                    <Setter Property="StrokeThickness" Value="2" />
+                                </DataTrigger>
+                            </Border.Triggers>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding SelectProviderCommand}" CommandParameter="Google Drive" />
+                            </Border.GestureRecognizers>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                <Label Text="Google Drive" FontFamily="OpenSansSemibold" VerticalTextAlignment="Center" />
+                                <Label Grid.Column="1" Text="✓" TextColor="{StaticResource Primary}" IsVisible="{Binding IsGoogleDriveSelected}" VerticalTextAlignment="Center" />
+                            </Grid>
+                        </Border>
+                        <Border Grid.Column="1"
+                                Style="{StaticResource Card}"
+                                Padding="12"
+                                MinimumHeightRequest="58"
+                                SemanticProperties.Description="Dropbox cloud service">
+                            <Border.Triggers>
+                                <DataTrigger TargetType="Border" Binding="{Binding IsDropboxSelected}" Value="True">
+                                    <Setter Property="Stroke" Value="{StaticResource Primary}" />
+                                    <Setter Property="StrokeThickness" Value="2" />
+                                </DataTrigger>
+                            </Border.Triggers>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding SelectProviderCommand}" CommandParameter="Dropbox" />
+                            </Border.GestureRecognizers>
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                <Label Text="Dropbox" FontFamily="OpenSansSemibold" VerticalTextAlignment="Center" />
+                                <Label Grid.Column="1" Text="✓" TextColor="{StaticResource Primary}" IsVisible="{Binding IsDropboxSelected}" VerticalTextAlignment="Center" />
+                            </Grid>
+                        </Border>
+                    </Grid>
                     <Label Text="After choosing a cloud service, tap the button below to search that account."
                            Style="{StaticResource Muted}" />
                     <Button Text="Connect and find backups  →"
@@ -52,20 +88,63 @@
                     <Border Style="{StaticResource SuccessCard}" IsVisible="{Binding HasAvailableVaults}">
                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
                             <Label Text="✓" TextColor="{StaticResource Success}" FontFamily="OpenSansSemibold" />
-                            <Label Grid.Column="1" Text="Backups found. Choose one below to continue." TextColor="{StaticResource Success}" />
+                            <Label Grid.Column="1"
+                                   Text="Backups found. The most recent backup is recommended."
+                                   TextColor="{StaticResource Success}" />
                         </Grid>
                     </Border>
-                    <Border Style="{StaticResource FieldBorder}" IsVisible="{Binding HasAvailableVaults}">
-                        <Border.Triggers>
-                            <DataTrigger TargetType="Border" Binding="{Binding IsVaultSelectionInvalid}" Value="True">
-                                <Setter Property="Stroke" Value="{StaticResource Danger}" />
-                                <Setter Property="StrokeThickness" Value="2" />
-                            </DataTrigger>
-                        </Border.Triggers>
-                        <Picker ItemsSource="{Binding AvailableVaults}"
-                                SelectedItem="{Binding SelectedVault}"
-                                ItemDisplayBinding="{Binding DisplayName}"
-                                Title="Select backup" />
+                    <VerticalStackLayout Spacing="8"
+                                         IsVisible="{Binding HasAvailableVaults}"
+                                         BindableLayout.ItemsSource="{Binding AvailableVaults}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource Card}"
+                                        Padding="14"
+                                        MinimumHeightRequest="82"
+                                        AutomationProperties.IsInAccessibleTree="True"
+                                        SemanticProperties.Description="{Binding AccessibilityDescription}">
+                                    <Border.Triggers>
+                                        <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                                            <Setter Property="Stroke" Value="{StaticResource Primary}" />
+                                            <Setter Property="StrokeThickness" Value="2" />
+                                        </DataTrigger>
+                                    </Border.Triggers>
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.SelectVaultCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+                                    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="5" ColumnSpacing="8">
+                                        <Label Text="{Binding Title}"
+                                               FontFamily="OpenSansSemibold"
+                                               FontSize="16" />
+                                        <Border Grid.Column="1"
+                                                IsVisible="{Binding IsRecommended}"
+                                                StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 8"
+                                                Padding="8,3"
+                                                BackgroundColor="{AppThemeBinding Light={StaticResource LightInfoSurface}, Dark={StaticResource DarkInfoSurface}}">
+                                            <Label Text="RECOMMENDED"
+                                                   Style="{StaticResource AccentEyebrow}"
+                                                   FontSize="10" />
+                                        </Border>
+                                        <HorizontalStackLayout Grid.Row="1" Grid.ColumnSpan="2" Spacing="7">
+                                            <Label Text="{Binding UpdatedText}" Style="{StaticResource Muted}" />
+                                            <Label Text="·" Style="{StaticResource Muted}" />
+                                            <Label Text="{Binding ProviderName}" Style="{StaticResource Muted}" />
+                                        </HorizontalStackLayout>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                    <Border Style="{StaticResource InfoCard}" IsVisible="{Binding HasAvailableVaults}">
+                        <Label Text="PassCrate automatically restores the newest valid saved state inside the backup you select. You do not need to choose a technical version."
+                               Style="{StaticResource Muted}" />
+                    </Border>
+                    <Border Style="{StaticResource DangerCard}" IsVisible="{Binding IsVaultSelectionInvalid}">
+                        <Label Text="Choose a backup to continue."
+                               Style="{StaticResource ErrorText}" />
                     </Border>
                 </VerticalStackLayout>
             </Border>
