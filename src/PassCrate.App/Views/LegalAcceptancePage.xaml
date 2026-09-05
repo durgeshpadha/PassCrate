@@ -55,14 +55,6 @@
                     </VerticalStackLayout>
                 </Border>
 
-                <Border Style="{StaticResource InfoCard}">
-                    <VerticalStackLayout Spacing="6">
-                        <Label Text="Your legal rights remain" FontFamily="OpenSansSemibold" FontSize="16" />
-                        <Label Text="Warranty and liability limitations apply only to the maximum extent permitted by applicable law. Nothing here excludes a right, remedy, warranty, or liability that cannot legally be excluded."
-                               Style="{StaticResource Muted}" />
-                    </VerticalStackLayout>
-                </Border>
-
                 <Label Text="READ THE FULL DOCUMENTS" Style="{StaticResource Eyebrow}" Margin="2,5,0,0" />
                 <Button Text="Read Terms of Use"
                         Command="{Binding ReadTermsCommand}"
