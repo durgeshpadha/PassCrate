@@ -44,6 +44,12 @@ The in-app legal text is a product safeguard, not a substitute for jurisdiction-
 
 ## Build and test
 
+### Public website
+
+`src/PassCrate.WebSite` is the .NET 10 MVC website with a React preview gallery and compiled Tailwind CSS. It serves the home page and the app's shared Privacy Policy and Terms of Use. With Node.js 22.12+ installed, run `dotnet run --project src/PassCrate.WebSite --launch-profile http` and open `http://localhost:5210`. See [the website README](src/PassCrate.WebSite/README.md) for frontend development and publishing instructions.
+
+### Mobile app
+
 Requirements: .NET SDK 10.0.400 with MAUI Android/iOS workloads, Android SDK, JDK 17 or newer, and a paired Mac with Xcode for device iOS builds.
 
 ```powershell

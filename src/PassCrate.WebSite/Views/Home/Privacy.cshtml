@@ -1,0 +1,23 @@
+@model IReadOnlyList<PassCrate.Core.Legal.LegalDocument>
+@{
+    ViewData["Title"] = "Privacy Policy & Terms of Use";
+    ViewData["Description"] = "Read the complete PassCrate Privacy Policy and Terms of Use, shared directly with the application's in-app legal documents.";
+}
+<section class="legal-hero shell"><p class="eyebrow">TRANSPARENCY, ALWAYS</p><h1>Your privacy.<br /><span class="gradient-text">In plain sight.</span></h1><p>The complete Privacy Policy and Terms of Use included in PassCrate.<br />Clear information, so you can make your own choices.</p></section>
+<div class="legal-layout shell">
+    <aside class="legal-sidebar"><nav aria-label="Legal documents"><p class="eyebrow">ON THIS PAGE</p>@foreach (var document in Model) { <a href="#@document.Id">@document.Title <span aria-hidden="true">↗</span></a> }<a class="back-home" href="~/">← Back to home</a></nav><div class="legal-note"><span aria-hidden="true">◇</span><p>These documents describe the PassCrate app and its optional cloud synchronization.</p></div></aside>
+    <div class="legal-documents">
+        @foreach (var document in Model)
+        {
+            <article class="legal-document" id="@document.Id">
+                <div class="legal-document-header"><p class="eyebrow">@(document.Id == "privacy" ? "01 / YOUR INFORMATION" : "02 / USING PASSCRATE")</p><h2>@document.Title</h2><div class="legal-meta"><span>Version @document.Version</span><span>Effective @document.EffectiveDate</span></div></div>
+                <p class="legal-intro">@document.Introduction</p>
+                @for (var i = 0; i < document.Sections.Count; i++)
+                {
+                    var legalSection = document.Sections[i];
+                    <section class="legal-section" id="@(document.Id)-@(i + 1)"><h3><span>@((i + 1).ToString("D2"))</span>@legalSection.Heading</h3><p>@legalSection.Body</p></section>
+                }
+            </article>
+        }
+    </div>
+</div>

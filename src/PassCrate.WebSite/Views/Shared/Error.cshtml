@@ -1,0 +1,9 @@
+@model ErrorViewModel
+@{ ViewData["Title"] = "Something went wrong"; }
+<section class="legal-hero shell">
+    <p class="eyebrow">LET’S TRY THAT AGAIN</p>
+    <h1>Something went wrong.</h1>
+    <p>We couldn’t load this page. Please try again in a moment.</p>
+    <a class="button" href="~/">Back to home →</a>
+    @if (Model.ShowRequestId) { <p>Reference: <code>@Model.RequestId</code></p> }
+</section>

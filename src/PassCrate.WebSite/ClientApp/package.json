@@ -1,0 +1,20 @@
+{
+  "name": "passcrate-website",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "watch": "vite build --watch"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
+    "eslint": "^10.10.0",
+    "tailwindcss": "^4.1.0",
+    "vite": "^7.1.0"
+  }
+}

@@ -1,0 +1,46 @@
+@{
+    ViewData["Title"] = "Your secrets. Your space.";
+    ViewData["Description"] = "Meet PassCrate, a local-first secrets vault for Android and iOS. Organize passwords, keys and private notes, with optional encrypted cloud sync.";
+}
+<section class="hero shell">
+    <div class="hero-copy">
+        <span class="eyebrow-pill"><span class="status-dot"></span> A little more privacy. A lot more peace of mind.</span>
+        <h1>Your secrets.<br /><span class="gradient-text">Your space.</span></h1>
+        <p class="hero-description">Passwords, private notes, and everything worth keeping to yourself. Meet your personal vault, built to keep you in control.</p>
+        <div class="flex flex-wrap gap-3 mt-8"><a class="button" href="#preview">Take a look inside <span aria-hidden="true">↗</span></a><a class="button button-secondary" href="#about">Discover PassCrate <span aria-hidden="true">↓</span></a></div>
+        <div class="platform-note"><span aria-hidden="true">◉</span> Built for Android &amp; iOS <span class="divider">/</span> Coming soon</div>
+        <div class="mt-5 inline-flex items-center gap-3 rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-left" aria-label="Coming soon on Google Play for Android">
+            <svg aria-hidden="true" width="27" height="30" viewBox="0 0 27 30" fill="none"><path d="M4 3L24 15L4 27V3Z" stroke="#c9aeff" stroke-width="1.8" stroke-linejoin="round" /></svg>
+            <div><span class="block text-[10px] uppercase tracking-[0.16em] text-purple-200">Coming soon on</span><span class="block text-xl font-semibold tracking-tight">Google Play</span></div>
+        </div>
+    </div>
+    <div class="hero-visual" aria-label="PassCrate dark theme design preview">
+        <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+        <div class="float-card card-secure"><span class="mini-icon">↳</span><div>Your vault. On your device.<small>Local first, by design.</small></div><span class="status-dot"></span></div>
+        <div class="phone-crop dark-preview hero-phone"><img src="~/images/app-design-preview.png" width="1536" height="1024" alt="PassCrate design preview showing a Personal group with email, banking, and private note entries in dark mode." fetchpriority="high" /></div>
+        <div class="float-card card-private"><span class="mini-icon">✧</span><div>A private place for your life.<small>No ads. No activity tracking.</small></div></div>
+        <span class="visual-caption">APP DESIGN PREVIEW</span>
+    </div>
+</section>
+<div class="trust-strip shell"><span><span aria-hidden="true">◇</span> Local-first storage</span><span><span aria-hidden="true">⌁</span> Encrypted secrets</span><span><span aria-hidden="true">☁</span> Your cloud, your choice</span><span><span aria-hidden="true">◎</span> No ads or analytics</span></div>
+<section class="section shell" id="about">
+    <div class="section-heading"><div><p class="eyebrow">MEET PASSCRATE</p><h2>A home for the things<br />you keep <span class="gradient-text">to yourself.</span></h2></div><p>Less clutter. More control. Keep the important details of your digital life together, in a vault that starts on your device.</p></div>
+    <div class="feature-grid">
+        <article class="feature-card"><span class="feature-icon">▦</span><span class="feature-number">01</span><h3>A place for every secret</h3><p>Organize passwords, keys, and private notes into groups. Custom fields keep the details that matter close at hand.</p><div class="tag-row"><span>Passwords</span><span>Keys</span><span>Private notes</span></div></article>
+        <article class="feature-card"><span class="feature-icon">◇</span><span class="feature-number">02</span><h3>Privacy starts on your device</h3><p>Secret values and private notes are encrypted. Your vault works locally, with device-owner and biometric unlock where available.</p><div class="card-footnote"><span class="status-dot"></span> Your device. Your control.</div></article>
+        <article class="feature-card"><span class="feature-icon">☁</span><span class="feature-number">03</span><h3>Your cloud. Your choice.</h3><p>Choose optional encrypted sync directly to your Google Drive or Dropbox account. Your vault passphrase stays with you.</p><div class="tag-row"><span>Google Drive</span><span>Dropbox</span></div></article>
+    </div>
+</section>
+<section class="section preview-section" id="preview">
+    <div class="shell">
+        <div class="text-center max-w-2xl mx-auto"><p class="eyebrow">A LOOK INSIDE</p><h2>Private by nature.<br /><span class="gradient-text">Simple by design.</span></h2><p class="section-description">A calm space for your everyday secrets. Explore the light and dark design previews below.</p></div>
+        <div id="app-gallery" data-preview-url="@Url.Content("~/images/app-design-preview.png")">
+            <figure class="fallback-preview"><img src="~/images/app-design-preview.png" alt="PassCrate light and dark design previews of the Personal group." width="1536" height="1024" loading="lazy" /><figcaption>Light and dark design previews. Final app screens may differ.</figcaption></figure>
+        </div>
+    </div>
+</section>
+<section class="section shell">
+    <div class="privacy-callout"><div class="callout-symbol" aria-hidden="true">✳</div><div><p class="eyebrow">YOUR TRUST MATTERS</p><h2>Privacy, in plain sight.</h2><p>Understand what stays on your device, how optional cloud sync works, and what you’re responsible for. Read the same policy and terms included in the app.</p><a class="text-link" href="~/privacy">Read our privacy policy &amp; terms <span aria-hidden="true">↗</span></a></div></div>
+    <div class="release-note"><span class="eyebrow-pill">✦ ON THE HORIZON</span><h2>Your private space is coming.</h2><p>PassCrate is in development for Android and iOS.<br />A little patience. A more private digital life.</p></div>
+</section>
+@section Scripts { <script type="module" src="~/dist/site.js" asp-append-version="true"></script> }

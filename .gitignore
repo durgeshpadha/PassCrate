@@ -35,6 +35,9 @@ google-services.json
 **/artifacts/
 TestResults/
 coverage/
+# Website frontend dependencies and generated assets
+**/node_modules/
+src/PassCrate.WebSite/wwwroot/dist/
 *.apk
 *.aab
 *.ipa

@@ -1,0 +1,32 @@
+@{ var isPrivacy = ViewContext.RouteData.Values["action"]?.ToString() == "Privacy"; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#09080f" />
+    <title>@ViewData["Title"] | PassCrate</title>
+    <meta name="description" content="@ViewData["Description"]" />
+    <link rel="icon" type="image/svg+xml" href="~/images/brand-shield.svg" />
+    <link rel="stylesheet" href="~/dist/site.css" asp-append-version="true" />
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header shell">
+        <a class="wordmark" href="~/" aria-label="PassCrate home"><img src="~/images/brand-shield.svg" alt="" width="32" height="32" />PassCrate<span>.</span></a>
+        <nav aria-label="Main navigation" class="flex items-center gap-6 md:gap-9">
+            <a href="~/" aria-current="@(!isPrivacy ? "page" : null)">Home</a>
+            <a class="desktop-link" href="~/#about">About</a>
+            <a href="~/privacy" aria-current="@(isPrivacy ? "page" : null)">Privacy &amp; terms</a>
+        </nav>
+        <a class="button button-small desktop-link" href="~/#preview">Explore the app <span aria-hidden="true">↗</span></a>
+    </header>
+    <main id="main" tabindex="-1">@RenderBody()</main>
+    <footer class="site-footer shell">
+        <div><a class="wordmark" href="~/">PassCrate<span>.</span></a><p>Your secrets. Your space.</p></div>
+        <div class="footer-links"><a href="~/">Home</a><a href="~/privacy#privacy">Privacy Policy</a><a href="~/privacy#terms">Terms of Use</a></div>
+        <p class="copyright">© @DateTime.UtcNow.Year PassCrate. All rights reserved.</p>
+    </footer>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
